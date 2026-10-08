@@ -75,6 +75,7 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(ctx?.props.source).toContain(
     '<title>ctx 42% · 84k/200k · compacts at 80% · Messages 50k · System tools 20k</title>',
   )
+  expect(ctx?.props.source).toContain('<style>:root{color-scheme:light dark}</style>')
   expect(ctx?.props.source).toContain('<rect x="63" width="2" height="12" fill="#c04742"/>')
   expect(fiveHour?.props.source).toContain('<rect x="25" width="2" height="12" fill="#9c9c9c"/>')
   expect(await desktop.find({ type: 'Text', text: /^cache 83%$/ })).toBeDefined()

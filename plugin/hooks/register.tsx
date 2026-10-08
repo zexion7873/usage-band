@@ -28,8 +28,12 @@ const pace = (limit: SessionRateLimit, now: number) => {
 }
 
 // An image Svg shows no tooltip: hover reaches a <title> only in an isInteractive frame.
+// Without the color-scheme, a light frame on the dark app gets an opaque white backdrop.
 const titled = (svg: string, text: string) =>
-  svg.replace('>', `><title>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</title>`)
+  svg.replace(
+    '>',
+    `><style>:root{color-scheme:light dark}</style><title>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</title>`,
+  )
 
 const tokens = (n: number) =>
   n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
