@@ -45,5 +45,6 @@ Conventional Commits (`feat:` / `fix:` / `refactor:` / `docs:` / `chore:` /
 per commit. Do not bump the version in your PR — releases are cut separately.
 
 If your change alters behaviour, interfaces, or project state, the docs it makes
-stale are part of the diff: README, AGENTS.md, and `docs/band.svg` if the
-drawing moved.
+stale are part of the diff: README, AGENTS.md, `docs/band.svg` if the drawing
+moved, and `docs/social-card.png` if the drawing or `plugin.json`'s description
+did.
