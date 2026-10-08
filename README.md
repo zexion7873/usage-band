@@ -78,6 +78,17 @@ ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · $1.23
 Reset countdowns and pace ticks keep moving while the session sits idle — the
 band redraws once a minute rather than waiting for the next response.
 
+### 🎯 Use cases
+
+- **Compact on your terms.** Before starting a long task, compare the `ctx`
+  fill with its red tick. Close to the tick, run `/compact` or start a fresh
+  session now, instead of having auto-compact fire halfway through the work.
+- **Pace a rate-limit window.** When the `5h` fill runs past its grey tick, you
+  are spending faster than an even pace and will hit the limit before it
+  resets. The countdown beside it says how long the rest has to last.
+- **See usage in the desktop app at all.** In the Code tab, where status-line
+  meters never run, glance above the prompt instead of opening the usage panel.
+
 ---
 
 ## 🖥️ Desktop and terminal
@@ -114,6 +125,17 @@ flowchart LR
 Every figure comes from Claude Code's own session usage, read locally. The mod
 writes no files, opens no ports, and makes no network requests or model calls —
 `claude plugin validate plugin` prints every engine call it makes.
+
+---
+
+## 🩺 Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| No band at all | `claude plugin list` should show `usage-band@usage-band` as loaded. A session picks up plugins only when it starts, so open a new one after installing or updating. Mods also need a recent Claude Code — see Requirements. |
+| Band missing for a moment | It steps aside while Claude Code shows a survey above the prompt, and draws nothing until the session has reported its first usage. |
+| No `5h` / `wk` / `spend` | Only the windows Claude Code reports for your account are drawn; `spend` appears only with a spend limit. |
+| A figure looks wrong | Compare it with Claude Code's own usage panel, then [open a bug](https://github.com/zexion7873/usage-band/issues/new?template=bug.yml) with both values and where you ran it. |
 
 ---
 
