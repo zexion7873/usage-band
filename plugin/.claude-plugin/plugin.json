@@ -1,6 +1,6 @@
 {
   "name": "usage-band",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Always-on band above the prompt: context fill and rate-limit windows",
   "types": "./types/index.d.ts",
   "author": {
