@@ -34,6 +34,26 @@ It makes no network requests, opens no ports, makes no model calls, runs no
 shell commands and writes no files. `claude plugin validate plugin` prints every
 engine call the module makes.
 
+### Note for directory reviewers: the credential finding
+
+The Anthropic directory's scan reports `MCP_FORWARDS_CREDENTIAL_ENV` for this
+plugin by pairing two things that are not what the finding describes, and are
+unrelated to each other:
+
+- **"Reads the installer's tokens"** (`hooks/register.tsx`). The only tokens the
+  mod reads are LLM usage counts — `context.tokens`, `input_tokens`,
+  `cache_read_input_tokens`, `cache_creation_input_tokens`, and each context
+  category's token count — returned by the engine's `$.session.usage()` and the
+  `session.measure` event. It reads no
+  credential, environment variable, or file.
+- **"Sends data off the machine"** (`hooks/bar.ts`). `http://www.w3.org/2000/svg`
+  is the SVG namespace in the `xmlns` attribute of the string the mod renders
+  locally as each bar. It is an identifier and is never fetched.
+
+The engine calls the module makes are exactly: `$.clock.every`, `$.clock.now`,
+`$.session.usage`, `$.state.get`, `$.state.set`, `$.ui.invalidate`,
+`$.ui.resolve`. None of them reaches the network.
+
 ### In scope
 
 - Anything that lets content reach the SVG source. Only numbers and fixed
