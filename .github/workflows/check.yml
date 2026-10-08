@@ -1,0 +1,41 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# This repo IS the marketplace users install from, so the token's scope is a
+# property of this file rather than a repo-settings toggle.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Claude Code, pinned
+        # Bump together with the README's requirements line.
+        run: npm install -g @anthropic-ai/claude-code@2.1.291 && claude --version
+      - name: validate
+        run: claude plugin validate .
+      - name: test
+        run: claude plugin test .
+      - name: the committed hero matches the code that draws it
+        run: |
+          node tools/make-hero.mts "$RUNNER_TEMP/band.svg"
+          cmp docs/band.svg "$RUNNER_TEMP/band.svg" || {
+            echo "::error::docs/band.svg is stale — run node tools/make-hero.mts and commit it"
+            exit 1
+          }
