@@ -10,12 +10,12 @@ Use [GitHub's private vulnerability reporting](https://github.com/zexion7873/usa
 
 This is a one-person project. You will get a first response within a few days,
 not within hours, and the fix ships as a version bump in
-`.claude-plugin/plugin.json` — nothing else reaches an install.
+`plugin/.claude-plugin/plugin.json` — nothing else reaches an install.
 
 ## Supported versions
 
 The latest published version only. There are no maintenance branches, and tags
-play no part: whatever `.claude-plugin/plugin.json` says on `main` is what
+play no part: whatever `plugin/.claude-plugin/plugin.json` says on `main` is what
 `claude plugin update` hands out, and older versions are never patched.
 
 ## What this plugin actually does on your machine
@@ -31,7 +31,7 @@ module run inside Claude Code's own engine. It:
   the terminal.
 
 It makes no network requests, opens no ports, makes no model calls, runs no
-shell commands and writes no files. `claude plugin validate .` prints every
+shell commands and writes no files. `claude plugin validate plugin` prints every
 engine call the module makes.
 
 ### In scope

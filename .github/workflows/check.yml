@@ -28,10 +28,13 @@ jobs:
       - name: Claude Code, pinned
         # Bump together with the README's requirements line.
         run: npm install -g @anthropic-ai/claude-code@2.1.291 && claude --version
-      - name: validate
+      - name: validate the marketplace
         run: claude plugin validate .
+      - name: validate the plugin
+        # validate . stops at the marketplace manifest; it does not descend into plugin/.
+        run: claude plugin validate --strict plugin
       - name: test
-        run: claude plugin test .
+        run: claude plugin test plugin
       - name: the committed hero matches the code that draws it
         run: |
           node tools/make-hero.mts "$RUNNER_TEMP/band.svg"

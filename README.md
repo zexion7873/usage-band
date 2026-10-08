@@ -115,7 +115,7 @@ flowchart LR
 
 Every figure comes from Claude Code's own session usage, read locally. The mod
 writes no files, opens no ports, and makes no network requests or model calls —
-`claude plugin validate .` prints every engine call it makes.
+`claude plugin validate plugin` prints every engine call it makes.
 
 ---
 
@@ -132,8 +132,8 @@ The mod writes nothing to disk of its own, so there is nothing else to clean up.
 ## 🛠️ Develop
 
 ```bash
-claude plugin validate .
-claude plugin test .
+claude plugin validate --strict plugin
+claude plugin test plugin
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the dev loop and the traps worth
