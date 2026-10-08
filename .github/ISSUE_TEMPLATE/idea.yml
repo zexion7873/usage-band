@@ -1,0 +1,29 @@
+name: Idea
+description: Something the band should show, or show differently
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is annoying you
+      description: The situation, not the solution — the moment the band failed to tell you something you needed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you had in mind
+      description: Optional. A rough shape is fine, and so is "no idea, but this bothers me."
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which part, if you know
+      options:
+        - A meter that is missing
+        - The bars or the tooltip on the desktop
+        - The text line in the terminal
+        - Colours or thresholds
+        - Install or update
+        - Not sure

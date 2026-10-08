@@ -1,46 +1,147 @@
-# usage-band
+<div align="center">
 
-An always-on band above the Claude Code prompt: context fill and every rate-limit window, with time to reset.
+# 📶 usage-band
 
-It is a mod (a plugin of function hooks), so it draws in the desktop app's Code tab as well as in the terminal. A `statusLine` command never runs in the desktop Code tab, so status-line usage meters stay invisible there.
+[![check](https://github.com/zexion7873/usage-band/actions/workflows/check.yml/badge.svg)](https://github.com/zexion7873/usage-band/actions/workflows/check.yml)
 
-## What it shows
+<img src="docs/band.svg" width="767" alt="The usage band: ctx at 42% with 84k of 200k tokens and a red tick at the 80% auto-compact point, 5h at 67% in amber with 1h48m to reset and a grey pace tick at 64%, wk at 89% in red with 2d21h to reset and a pace tick at 59%, then cache 83% and $1.23. A tooltip over the ctx bar lists the compact point and the two largest context categories.">
 
-| Item | Meaning |
-|---|---|
-| `ctx` | Context window fill, `tokens/window` beside it. A red tick marks where auto-compact triggers. |
-| `5h`, `wk` | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, so a fill past the tick is burning faster than an even pace. |
-| `spend` | The spend limit, when the account has one. |
-| `cache N%` | Cache reads as a share of all input tokens in the last response. |
-| `$N.NN` | Session cost. |
+<sub>Drawn by the mod's own <code>bar()</code> from sample figures — not a screenshot.</sub>
 
-Percent turns amber at 60% and red at 85%. On the desktop each meter is a bar whose tooltip lists the detail: the largest context categories, the compact point, the pace. The terminal draws the same figures as one line of text.
+**Context fill and every rate-limit window, always on, right above the Claude
+Code prompt — in the desktop app's Code tab as well as the terminal.**
 
-Figures come from Claude Code's own session usage, read locally. The mod makes no network requests and no model calls.
+[![License: MIT](https://img.shields.io/github/license/zexion7873/usage-band?style=flat)](LICENSE)
+[![Surface](https://img.shields.io/badge/surface-desktop%20%7C%20terminal-lightgrey?style=flat)](#%EF%B8%8F-desktop-and-terminal)
+[![Network](https://img.shields.io/badge/network-none-brightgreen?style=flat)](#-how-it-works)
 
-## Install
+No status-line script. No network requests. No model calls. One mod reading
+Claude Code's own session usage.
 
-In a terminal session:
+</div>
 
+---
+
+## 🚀 Install
+
+### 🤖 Hand it to your agent
+
+Paste this and walk away:
+
+```text
+Fetch and follow https://raw.githubusercontent.com/zexion7873/usage-band/main/llms-install.md
 ```
-/plugin install usage-band --marketplace zexion7873/usage-band
+
+It installs from the CLI and verifies the install. Recipe in
+[llms-install.md](llms-install.md).
+
+### 🧑 Or type it yourself
+
+From inside a Claude Code terminal session:
+
+```text
+/plugin marketplace add zexion7873/usage-band
+/plugin install usage-band@usage-band
 ```
 
-Answer `y` to add the marketplace, then pick the user scope. The band appears in that session at once. Installed at the user scope, it also loads in sessions the desktop app starts; the desktop Code tab cannot run `/plugin` itself.
+Pick the user scope. The band appears in that session at once. Installed at the
+user scope, it also loads in sessions the desktop app starts — the desktop Code
+tab cannot run `/plugin` itself, so install from a terminal once.
 
-## Requirements
+> [!IMPORTANT]
+> **Requirements:** a Claude Code build with function-hook plugins (mods). CI
+> validates and tests against Claude Code 2.1.291; older builds are unmeasured.
 
-A Claude Code build with function-hook plugins (mods). Tests pass on Claude Code 2.1.291.
+---
 
-## Develop
+## 📊 What it shows
 
+|   | Item | Meaning |
+|:-:|------|---------|
+| 🧠 | **`ctx`** | Context window fill, `tokens/window` beside it. A red tick marks where auto-compact triggers. |
+| ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed — a fill past the tick is burning faster than an even pace. |
+| 💳 | **`spend`** | The spend limit, when the account has one. |
+| ♻️ | **`cache N%`** | Cache reads as a share of all input tokens in the last response. |
+| 💵 | **`$N.NN`** | Session cost. |
+
+Percent turns amber at 60% and red at 85%.
+
+### 🔍 The tooltip
+
+On the desktop each meter is a bar, and hovering it lists the detail: for `ctx`,
+the compact point and the three largest context categories; for a rate-limit
+window, the pace. The terminal has no hover, so it draws the headline figures as
+one line of text:
+
+```text
+ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · $1.23
 ```
+
+Reset countdowns and pace ticks keep moving while the session sits idle — the
+band redraws once a minute rather than waiting for the next response.
+
+---
+
+## 🖥️ Desktop and terminal
+
+A `statusLine` command never runs in the desktop Code tab, so every status-line
+usage meter is invisible there. usage-band is a **mod** — a plugin of function
+hooks — and draws into the prompt area itself, which both surfaces render.
+
+It steps aside while Claude Code shows a survey above the prompt, and keeps
+whatever other plugins drew beneath it.
+
+---
+
+## 🔧 How it works
+
+```mermaid
+flowchart LR
+    Start["session.start<br/>usage + breakdown"]
+    Measure["session.measure<br/>after every response"]
+    State[("usage atom<br/>plugin state")]
+    Render["ui.render · AbovePrompt"]
+    Desk["🖥️ desktop<br/>SVG bars + tooltip"]
+    Term["⌨️ terminal<br/>one line of text"]
+    Clock["every 60 s"]
+
+    Start --> State
+    Measure --> State
+    State --> Render
+    Render --> Desk
+    Render --> Term
+    Clock -.->|"invalidate"| Render
+```
+
+Every figure comes from Claude Code's own session usage, read locally. The mod
+writes no files, opens no ports, and makes no network requests or model calls —
+`claude plugin validate .` prints every engine call it makes.
+
+---
+
+## 🧹 Uninstall
+
+```text
+/plugin uninstall usage-band@usage-band
+```
+
+The mod writes nothing to disk of its own, so there is nothing else to clean up.
+
+---
+
+## 🛠️ Develop
+
+```bash
 claude plugin validate .
 claude plugin test .
 ```
 
-`.claude-plugin/types/` is written by the engine when the mod loads; `tsconfig.json` extends it, so `tsc -p .` type-checks once the mod has loaded once.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the dev loop and the traps worth
+knowing first; [AGENTS.md](AGENTS.md) has the rest.
 
-## License
+---
 
-MIT
+## ⚖️ Disclaimer
+
+Unofficial community project. Not affiliated with, endorsed by, or sponsored by
+Anthropic.

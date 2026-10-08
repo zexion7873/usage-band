@@ -1,0 +1,72 @@
+name: Bug report
+description: The band showed something wrong, or nothing when it should have
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One thing decides whether a report is actionable here, and it is easy
+        to check before you write anything:
+
+        - **`claude plugin list`** — the version that actually reached you, and
+          whether it is loaded at all. An update only lands on sessions started
+          *after* it, so a fix you read about may not be the one running.
+
+  - type: input
+    id: version
+    attributes:
+      label: usage-band version
+      description: "`claude plugin list` — the line for `usage-band@usage-band`. Not the version on `main`: a plugin update only reaches sessions started after it."
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: cli
+    attributes:
+      label: Claude Code version
+      description: "`claude --version`. Mods need a build with function-hook plugins, so \"no band, no error\" can be a version answer rather than a bug."
+      placeholder: "2.1.291"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where were you running Claude Code?
+      description: The desktop app and the terminal draw the band through different branches of the same code — bars on one, text on the other.
+      options:
+        - Desktop app (Code tab)
+        - Terminal CLI
+        - VS Code / JetBrains extension
+        - More than one, and it differs between them
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What the band showed, and what you expected instead
+      description: The figure it showed versus the figure you believe is right, and where you read the right one (the app's own usage panel, `/usage`, …).
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to make it happen again
+      description: If you cannot reproduce it, say so — an intermittent report with real timestamps beats a confident guess.
+      placeholder: |
+        1. Start a session in …
+        2. Leave it idle for …
+        3. The 5h countdown stops moving
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have read the version I am running, not the version on main.
+          required: true
+        - label: This is about the band, not about the figures Claude Code itself reports.
+          required: true
