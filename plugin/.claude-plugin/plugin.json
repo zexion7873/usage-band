@@ -5,5 +5,10 @@
   "types": "./types/index.d.ts",
   "author": {
     "name": "Kevin Lin"
-  }
+  },
+  "homepage": "https://github.com/zexion7873/usage-band#readme",
+  "repository": "https://github.com/zexion7873/usage-band",
+  "documentationUrl": "https://github.com/zexion7873/usage-band#readme",
+  "supportUrl": "https://github.com/zexion7873/usage-band/issues",
+  "privacyPolicyUrl": "https://github.com/zexion7873/usage-band/blob/main/SECURITY.md#what-this-plugin-actually-does-on-your-machine"
 }
