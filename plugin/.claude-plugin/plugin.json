@@ -6,6 +6,7 @@
   "author": {
     "name": "Kevin Lin"
   },
+  "keywords": ["claude-code-mod", "usage-meter", "rate-limit", "context-window", "token-usage", "overlay"],
   "homepage": "https://github.com/zexion7873/usage-band#readme",
   "repository": "https://github.com/zexion7873/usage-band",
   "documentationUrl": "https://github.com/zexion7873/usage-band#readme",
