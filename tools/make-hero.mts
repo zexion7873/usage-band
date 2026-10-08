@@ -17,7 +17,7 @@ const meters = [
   { label: '5h', percent: 67, detail: '1h48m', tone: 'hot', marks: [{ percent: 64, color: PACE_TICK }] },
   { label: 'wk', percent: 89, detail: '2d21h', tone: 'over', marks: [{ percent: 59, color: PACE_TICK }] },
 ] as const
-const tooltip = 'ctx 42% · 84k/200k · compacts at 80% · Messages 50k · System tools 20k'
+const tooltip = 'ctx 42% · 84k/200k · compacts at 80% · Messages 50k · System tools 20k · Memory files 6k'
 
 const PAD = 16
 const ROW_Y = 78

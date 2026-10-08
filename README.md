@@ -4,7 +4,7 @@
 
 [![CI: check](https://github.com/zexion7873/usage-band/actions/workflows/check.yml/badge.svg)](https://github.com/zexion7873/usage-band/actions/workflows/check.yml)
 
-<img src="docs/band.svg" width="767" title="Drawn by the mod's own bar() from sample figures — not a screenshot." alt="The usage band, drawn by the mod's own bar() from sample figures rather than a screenshot: ctx at 42% with 84k of 200k tokens and a red tick at the 80% auto-compact point, 5h at 67% in amber with 1h48m to reset and a grey pace tick at 64%, wk at 89% in red with 2d21h to reset and a pace tick at 59%, then cache 83% and $1.23. A tooltip over the ctx bar lists the compact point and the two largest context categories.">
+<img src="docs/band.svg" width="767" title="Drawn by the mod's own bar() from sample figures — not a screenshot." alt="The usage band, drawn by the mod's own bar() from sample figures rather than a screenshot: ctx at 42% with 84k of 200k tokens and a red tick at the 80% auto-compact point, 5h at 67% in amber with 1h48m to reset and a grey pace tick at 64%, wk at 89% in red with 2d21h to reset and a pace tick at 59%, then cache 83% and $1.23. A tooltip over the ctx bar lists the compact point and the three largest context categories.">
 
 **Context fill and every rate-limit window, always on, right above the Claude
 Code prompt — in the desktop app's Code tab as well as the terminal.**
