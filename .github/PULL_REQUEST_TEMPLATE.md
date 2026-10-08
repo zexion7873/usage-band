@@ -7,7 +7,8 @@
 
 <!-- Delete the lines that do not apply. -->
 
-- [ ] `claude plugin validate .` and `claude plugin test .` pass.
+- [ ] `claude plugin validate .`, `claude plugin validate --strict plugin` and
+      `claude plugin test plugin` pass.
 - [ ] I looked at the band in a real session — desktop Code tab, terminal, or
       both, matching the branch I touched. What I saw:
 - [ ] I changed a test, and **showed the old code fails it** — which case, and
@@ -21,7 +22,7 @@
       Social preview.)
 
 > [!IMPORTANT]
-> **Do not bump `.claude-plugin/plugin.json`.** That one line *is* the publish —
+> **Do not bump `plugin/.claude-plugin/plugin.json`.** That one line *is* the publish —
 > this repository is the marketplace people install from — and releases are cut
 > separately.
 

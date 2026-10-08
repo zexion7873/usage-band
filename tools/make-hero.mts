@@ -2,7 +2,7 @@
 // The bars come from the mod's own bar(); the figures are samples, and the text around them is laid out here.
 import { writeFileSync } from 'node:fs'
 
-import { BAR, bar, COMPACT_TICK, PACE_TICK } from '../hooks/bar.ts'
+import { BAR, bar, COMPACT_TICK, PACE_TICK } from '../plugin/hooks/bar.ts'
 
 const out = process.argv[2] ?? new URL('../docs/band.svg', import.meta.url).pathname
 

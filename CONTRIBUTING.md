@@ -8,12 +8,12 @@ them by surprise; AGENTS.md has the rest.
 
 **The installed copy does not run your checkout.** `usage-band@usage-band` from
 the marketplace runs out of `plugins/cache/`, keyed by the `plugin.json`
-version. Load the checkout instead — `claude --plugin-dir .` for one session —
+version. Load the checkout instead — `claude --plugin-dir plugin` for one session —
 and it hot-reloads as you edit. If you have both, you are looking at two bands
 and editing one of them.
 
-**`tsc -p .` fails on a fresh clone.** `tsconfig.json` extends
-`.claude-plugin/types/`, which the engine writes the first time the mod loads
+**`tsc` fails on a fresh clone.** `plugin/tsconfig.json` extends
+`plugin/.claude-plugin/types/`, which the engine writes the first time the mod loads
 and git ignores. Load the mod once, then type-check.
 
 **The hero is generated, and CI holds it to the code.** Change `bar()`, a fill
@@ -23,9 +23,9 @@ any byte of difference. Run `node tools/make-hero.mts` and commit the result.
 ## Working on it
 
 ```bash
-claude --plugin-dir .            # a session running this checkout
-claude plugin validate .         # manifest + every engine call the module makes
-claude plugin test .             # the tests, exactly as CI runs them
+claude --plugin-dir plugin               # a session running this checkout
+claude plugin validate --strict plugin   # the plugin + every engine call the module makes
+claude plugin test plugin                # the tests, exactly as CI runs them
 node tools/make-hero.mts         # regenerate docs/band.svg
 ```
 

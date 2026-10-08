@@ -3,9 +3,9 @@
 // GitHub has no API for the social preview: the PNG is uploaded by hand at Settings → General → Social preview.
 import { readFileSync } from 'node:fs'
 
-import { BAR, bar, COMPACT_TICK, PACE_TICK } from '../hooks/bar.ts'
+import { BAR, bar, COMPACT_TICK, PACE_TICK } from '../plugin/hooks/bar.ts'
 
-const plugin = JSON.parse(readFileSync(new URL('../.claude-plugin/plugin.json', import.meta.url), 'utf8'))
+const plugin = JSON.parse(readFileSync(new URL('../plugin/.claude-plugin/plugin.json', import.meta.url), 'utf8'))
 const [tagline, accent] = (plugin.description as string).split(': ')
 if (accent === undefined) throw new Error('plugin.json description no longer reads "<tagline>: <accent>"')
 
