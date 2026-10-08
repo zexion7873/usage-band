@@ -65,6 +65,7 @@ claude plugin validate .         # manifest + every engine call the module makes
 claude plugin test .             # tests/*.test.ts in the engine's harness; exits 1 on a failure
 tsc -p .                         # only after the mod has loaded once — see below
 node tools/make-hero.mts         # README hero; NO ARG OVERWRITES docs/band.svg
+node tools/make-social-card.mts | rsvg-convert -o docs/social-card.png   # social preview
 ```
 
 `.claude-plugin/types/` is written by the engine when the mod loads and is
@@ -79,6 +80,19 @@ assembly with no fonts or rasteriser involved. CI regenerates it and `cmp`s the
 committed file, so changing `bar()`, `FILL` or a tick colour without rerunning
 `node tools/make-hero.mts` reds the build. The README's `width=` must match the
 SVG's own `width`; nothing checks that.
+
+## The social card
+
+`docs/social-card.png` is the repo's social preview, drawn by
+`tools/make-social-card.mts` from the same `bar()` plus `plugin.json`'s
+description, then rasterised by `rsvg-convert`. Two triggers stale it: the
+drawing moving (`bar()`, a fill, a tick colour) and the description changing.
+The script throws if the description stops reading `<tagline>: <accent>`.
+
+Unlike the hero, nothing in CI checks it: the PNG depends on the machine's
+fonts, so it is not byte-reproducible. And it has one step nothing here does:
+GitHub takes the social preview only through Settings → General → Social
+preview, so a regenerated PNG is not live until someone uploads it there.
 
 ## CI and releases
 

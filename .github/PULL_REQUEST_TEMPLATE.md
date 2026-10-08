@@ -15,6 +15,10 @@
 - [ ] `docs/band.svg` regenerated with `node tools/make-hero.mts`, and the
       README's `width=` still matches the SVG's own `width`. (Only when `bar()`,
       a fill or a tick colour moved; CI fails on a stale hero either way.)
+- [ ] `docs/social-card.png` regenerated. (When the drawing moved, or when
+      `plugin.json`'s description changed — the card renders it. Nothing checks
+      this one, and it is not live until re-uploaded at Settings → General →
+      Social preview.)
 
 > [!IMPORTANT]
 > **Do not bump `.claude-plugin/plugin.json`.** That one line *is* the publish —
