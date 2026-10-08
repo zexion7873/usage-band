@@ -1,0 +1,12 @@
+{
+  "name": "usage-band",
+  "owner": { "name": "Kevin Lin" },
+  "description": "usage-band: context fill and rate-limit windows above the Claude Code prompt, on desktop and terminal",
+  "plugins": [
+    {
+      "name": "usage-band",
+      "source": "./",
+      "description": "Always-on band above the prompt: context fill and rate-limit windows"
+    }
+  ]
+}
