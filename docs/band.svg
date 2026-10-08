@@ -1,20 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="767" height="104" viewBox="0 0 767 104" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12">
-<rect width="767" height="104" rx="10" fill="#262624"/>
-<rect x="59" y="14" width="440" height="28" rx="6" fill="#3a3936" stroke="#55534e"/>
-<path d="M77 42 l6 6 l6 -6 z" fill="#3a3936"/>
-<text x="69" y="32" fill="#e8e6e1">ctx 42% · 84k/200k · compacts at 80% · Messages 50k · System tools 20k</text>
-<text x="16" y="82" fill="#9b9993">ctx</text>
-<svg x="43" y="72" xmlns="http://www.w3.org/2000/svg" width="80" height="12"><rect y="2" width="80" height="8" rx="4" fill="#888" fill-opacity="0.25"/><rect y="2" width="34" height="8" rx="4" fill="#4177d0"/><rect x="63" width="2" height="12" fill="#c04742"/></svg>
-<text x="129" y="82" fill="#9b9993">42%</text>
-<text x="156" y="82" fill="#9b9993">84k/200k</text>
-<text x="233" y="82" fill="#9b9993">5h</text>
-<svg x="253" y="72" xmlns="http://www.w3.org/2000/svg" width="80" height="12"><rect y="2" width="80" height="8" rx="4" fill="#888" fill-opacity="0.25"/><rect y="2" width="54" height="8" rx="4" fill="#bf882e"/><rect x="50" width="2" height="12" fill="#9c9c9c"/></svg>
-<text x="339" y="82" fill="#d19a3c">67%</text>
-<text x="366" y="82" fill="#9b9993">1h48m</text>
-<text x="422" y="82" fill="#9b9993">wk</text>
-<svg x="442" y="72" xmlns="http://www.w3.org/2000/svg" width="80" height="12"><rect y="2" width="80" height="8" rx="4" fill="#888" fill-opacity="0.25"/><rect y="2" width="71" height="8" rx="4" fill="#c04742"/><rect x="46" width="2" height="12" fill="#9c9c9c"/></svg>
-<text x="528" y="82" fill="#d9605a">89%</text>
-<text x="555" y="82" fill="#9b9993">2d21h</text>
-<text x="611" y="82" fill="#9b9993">cache 83%</text>
-<text x="751" y="82" fill="#9b9993" text-anchor="end">$1.23</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="767" height="52" viewBox="0 0 767 52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12">
+<rect width="767" height="52" rx="10" fill="#262624"/>
+<text x="16" y="30" fill="#9b9993">ctx</text>
+<svg x="43" y="20" xmlns="http://www.w3.org/2000/svg" width="80" height="12"><rect y="2" width="80" height="8" rx="4" fill="#888" fill-opacity="0.25"/><rect y="2" width="34" height="8" rx="4" fill="#4177d0"/><rect x="63" width="2" height="12" fill="#c04742"/></svg>
+<text x="129" y="30" fill="#9b9993">42%</text>
+<text x="156" y="30" fill="#9b9993">84k/200k</text>
+<text x="233" y="30" fill="#9b9993">5h</text>
+<svg x="253" y="20" xmlns="http://www.w3.org/2000/svg" width="80" height="12"><rect y="2" width="80" height="8" rx="4" fill="#888" fill-opacity="0.25"/><rect y="2" width="54" height="8" rx="4" fill="#bf882e"/><rect x="50" width="2" height="12" fill="#9c9c9c"/></svg>
+<text x="339" y="30" fill="#d19a3c">67%</text>
+<text x="366" y="30" fill="#9b9993">1h48m</text>
+<text x="422" y="30" fill="#9b9993">wk</text>
+<svg x="442" y="20" xmlns="http://www.w3.org/2000/svg" width="80" height="12"><rect y="2" width="80" height="8" rx="4" fill="#888" fill-opacity="0.25"/><rect y="2" width="71" height="8" rx="4" fill="#c04742"/><rect x="46" width="2" height="12" fill="#9c9c9c"/></svg>
+<text x="528" y="30" fill="#d9605a">89%</text>
+<text x="555" y="30" fill="#9b9993">2d21h</text>
+<text x="611" y="30" fill="#9b9993">cache 83%</text>
+<text x="751" y="30" fill="#9b9993" text-anchor="end">$1.23</text>
 </svg>

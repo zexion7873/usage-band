@@ -58,7 +58,7 @@ The engine calls the module makes are exactly: `$.clock.every`, `$.clock.now`,
 
 - Anything that lets content reach the SVG source. Only numbers and fixed
   colours are interpolated there today; context category names go into the
-  tooltip text, never into the markup. A category name that escapes into the
+  bar's `alt` text, never into the markup. A category name that escapes into the
   SVG is a vulnerability.
 - Anything that makes the mod read or write outside its own plugin state, or
   call anything beyond what `validate` lists.

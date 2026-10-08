@@ -22,7 +22,7 @@ body:
       label: Which part, if you know
       options:
         - A meter that is missing
-        - The bars or the tooltip on the desktop
+        - The bars on the desktop
         - The text line in the terminal
         - Colours or thresholds
         - Install or update
