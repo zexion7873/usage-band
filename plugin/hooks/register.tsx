@@ -27,6 +27,10 @@ const pace = (limit: SessionRateLimit, now: number) => {
   return Math.round(clampPct(100 * (1 - (Date.parse(limit.resetsAt) - now) / span)))
 }
 
+// An image Svg shows no tooltip: hover reaches a <title> only in an isInteractive frame.
+const titled = (svg: string, text: string) =>
+  svg.replace('>', `><title>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</title>`)
+
 const tokens = (n: number) =>
   n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
 
@@ -148,23 +152,27 @@ export const register: Register = on => {
         {below}
         <Box flexDirection="row" alignItems="center" justifyContent="space-between">
           <Box flexDirection="row" alignItems="center" gap={3}>
-            {meters.map(m => (
-              <Box key={m.key} flexDirection="row" alignItems="center" gap={1}>
-                <Text dimColor>{m.label}</Text>
-                <Svg
-                  source={bar(m.percent, m.marks)}
-                  alt={[`${m.label} ${m.percent}%`, m.detail, ...m.extra].filter(Boolean).join(' · ')}
-                  width={BAR.width}
-                  height={BAR.tick}
-                />
-                {tone(m.percent) === 'calm' ? (
-                  <Text dimColor>{m.percent}%</Text>
-                ) : (
-                  <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
-                )}
-                {m.detail && <Text dimColor>{m.detail}</Text>}
-              </Box>
-            ))}
+            {meters.map(m => {
+              const summary = [`${m.label} ${m.percent}%`, m.detail, ...m.extra].filter(Boolean).join(' · ')
+              return (
+                <Box key={m.key} flexDirection="row" alignItems="center" gap={1}>
+                  <Text dimColor>{m.label}</Text>
+                  <Svg
+                    source={titled(bar(m.percent, m.marks), summary)}
+                    alt={summary}
+                    width={BAR.width}
+                    height={BAR.tick}
+                    isInteractive
+                  />
+                  {tone(m.percent) === 'calm' ? (
+                    <Text dimColor>{m.percent}%</Text>
+                  ) : (
+                    <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
+                  )}
+                  {m.detail && <Text dimColor>{m.detail}</Text>}
+                </Box>
+              )
+            })}
             {cache && <Text dimColor>{cache}</Text>}
           </Box>
           {cost && <Text dimColor>{cost}</Text>}
