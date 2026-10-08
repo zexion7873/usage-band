@@ -4,7 +4,7 @@
 
 [![CI: check](https://github.com/zexion7873/usage-band/actions/workflows/check.yml/badge.svg)](https://github.com/zexion7873/usage-band/actions/workflows/check.yml)
 
-<img src="docs/band.svg" width="767" title="Drawn by the mod's own bar() from sample figures — not a screenshot." alt="The usage band, drawn by the mod's own bar() from sample figures rather than a screenshot: ctx at 42% with 84k of 200k tokens and a red tick at the 80% auto-compact point, 5h at 67% in amber with 1h48m to reset and a grey pace tick at 64%, wk at 89% in red with 2d21h to reset and a pace tick at 59%, then cache 83% and $1.23. A tooltip over the ctx bar lists the compact point and the two largest context categories.">
+<img src="docs/band.svg" width="767" title="Drawn by the mod's own bar() from sample figures — not a screenshot." alt="The usage band, drawn by the mod's own bar() from sample figures rather than a screenshot: ctx at 42% with 84k of 200k tokens and a red tick at the 80% auto-compact point, 5h at 67% in amber with 1h48m to reset and a grey pace tick at 64%, wk at 89% in red with 2d21h to reset and a pace tick at 59%, then cache 83% and $1.23.">
 
 **Context fill and every rate-limit window, always on, right above the Claude
 Code prompt — in the desktop app's Code tab as well as the terminal.**
@@ -64,12 +64,12 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 
 Percent turns amber at 60% and red at 85%.
 
-### 🔍 The tooltip
+### 🖥️ Desktop and terminal
 
-On the desktop each meter is a bar, and hovering it lists the detail: for `ctx`,
-the compact point and the three largest context categories; for a rate-limit
-window, the pace. The terminal has no hover, so it draws the headline figures as
-one line of text:
+On the desktop each meter is a bar, and a screen reader reads its detail: for
+`ctx`, the compact point and the three largest context categories; for a
+rate-limit window, the pace. The terminal draws the headline figures as one line
+of text:
 
 ```text
 ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · $1.23
@@ -110,7 +110,7 @@ flowchart LR
     Measure["session.measure<br/>after every response"]
     State[("usage atom<br/>plugin state")]
     Render["ui.render · AbovePrompt"]
-    Desk["🖥️ desktop<br/>SVG bars + tooltip"]
+    Desk["🖥️ desktop<br/>SVG bars"]
     Term["⌨️ terminal<br/>one line of text"]
     Clock["every 60 s"]
 
