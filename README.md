@@ -107,7 +107,9 @@ whatever other plugins drew beneath it.
 ```mermaid
 flowchart LR
     Start["session.start<br/>usage + breakdown"]
-    Measure["session.measure<br/>after every response"]
+    Measure["session.measure<br/>after every turn"]
+    Step["turn.step<br/>ctx after every response"]
+    Compact["session.compact<br/>size it leaves"]
     State[("usage atom<br/>plugin state")]
     Render["ui.render · AbovePrompt"]
     Desk["🖥️ desktop<br/>SVG bars"]
@@ -116,6 +118,8 @@ flowchart LR
 
     Start --> State
     Measure --> State
+    Step --> State
+    Compact --> State
     State --> Render
     Render --> Desk
     Render --> Term
