@@ -53,6 +53,11 @@ reds one is a change in behaviour, not a test to update.
 - **Keep the clock running.** `session.start` arms `$.clock.every(60_000, …)` to
   invalidate `ui.render`. Without it an idle session freezes every reset
   countdown and pace tick.
+- **Move `ctx` inside a turn.** `session.measure` fires only when a turn ends,
+  so `turn.step` writes each main-thread response's input tokens, and
+  `session.compact` writes the result's `tokensAfter` — after a compaction
+  `$.session.usage()` still reports the last response's fill. Both skip
+  subagents; compaction also skips `precompute`.
 
 Two more have no test yet:
 

@@ -63,6 +63,12 @@ const snapshot = (
   detail,
 })
 
+const withContext = (prev: UsageBand, tokens: number): UsageBand => ({
+  ...prev,
+  contextTokens: tokens,
+  contextPercent: Math.round(clampPct((100 * tokens) / prev.contextWindow)),
+})
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const { context, rateLimits, cost } = await $.session.usage({ breakdown: 'summary' })
@@ -81,6 +87,29 @@ export const register: Register = on => {
       await update($, usage, prev => prev && { ...prev, detail })
     }
     return next(e)
+  })
+
+  on('session.compact', async ($, e, next) => {
+    const result = await next(e)
+    // usage() keeps the last response's fill until a new response lands, and the next measure waits for the turn's end.
+    if (result.skip !== undefined || result.tokensAfter === undefined || e.agentId !== undefined || e.trigger === 'precompute')
+      return result
+    const after = result.tokensAfter
+    await update($, usage, prev => prev && withContext(prev, after))
+    const { context } = await $.session.usage({ breakdown: 'summary' })
+    const detail = detailOf(context.breakdown, context.window)
+    await update($, usage, prev => prev && { ...prev, detail })
+    return result
+  })
+
+  // session.measure waits for the turn's end; a long turn would otherwise hold ctx at its starting fill.
+  on('turn.step', async function* ($, e, next) {
+    const result = yield* next(e)
+    const u = result.usage
+    if (u === null || e.agentId !== undefined) return result
+    const fill = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
+    await update($, usage, prev => prev && withContext(prev, fill))
+    return result
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
