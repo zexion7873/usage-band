@@ -199,3 +199,19 @@ test('band keeps small context categories readable', async ($, on) => {
   expect(ctx?.props.alt).toBe('ctx 0% · compacts at 16% · System prompt 5k · Messages 412')
   await desktop.unmount()
 })
+
+test('desktop band wraps its meters in a narrow pane instead of overlapping them', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T03:20:00Z' }],
+    cost: { usd: 1.234 },
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const rows = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexDirection === 'row' && b.props.gap !== 1)
+  expect(rows.map(b => b.props.flexWrap)).toEqual(['wrap', 'wrap'])
+  await desktop.unmount()
+})
