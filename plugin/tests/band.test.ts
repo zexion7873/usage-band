@@ -127,6 +127,30 @@ test('reset countdown keeps moving while the session sits idle', async ($, on) =
   await ui.unmount()
 })
 
+test('a window an idle session sat past the reset of reads reset, not its old fill', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 89, resetsAt: '2026-10-06T03:20:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+  await clock.advance(3 * 3_600_000 + 30 * 60_000)
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^reset$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^89%$/ })).toBeUndefined()
+  expect(await desktop.find({ type: 'Text', text: /0h0m/ })).toBeUndefined()
+  const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
+  expect(fiveHour?.props.source).not.toContain('#9c9c9c')
+  expect(fiveHour?.props.alt).toMatch(/^5h 0% · reset · reset at \d\d:\d\d · updates on the next response$/)
+  await desktop.unmount()
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await terminal.findAll({ type: 'Text' })).map(t => t.text).join('|')).toContain('(reset)')
+  await terminal.unmount()
+})
+
 test('band shows the context a compaction leaves, not the one it removed', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)

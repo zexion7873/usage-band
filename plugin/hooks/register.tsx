@@ -30,11 +30,12 @@ const duration = (ms: number) => {
 const untilReset = (resetsAt: string | undefined, now: number) =>
   resetsAt === undefined ? '' : duration(Date.parse(resetsAt) - now)
 
+const clockTime = (at: Date) => `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+
 // Local time of the reset; the weekday only when it is a day or more away.
 const resetClock = (resetsAt: string, now: number) => {
   const at = new Date(resetsAt)
-  const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
-  return at.getTime() - now >= 86_400_000 ? `resets ${DAYS[at.getDay()]} ${time}` : `resets ${time}`
+  return at.getTime() - now >= 86_400_000 ? `resets ${DAYS[at.getDay()]} ${clockTime(at)}` : `resets ${clockTime(at)}`
 }
 
 const line = (text: string, isWarning = false) => ({ text, isWarning })
@@ -171,6 +172,18 @@ export const register: Register = on => {
       },
       ...current.rateLimits.map(limit => {
         const label = LABELS[limit.kind] ?? limit.kind
+        // A reading only moves when a response lands, so an idle session can sit past a reset with the old fill.
+        if (limit.resetsAt !== undefined && Date.parse(limit.resetsAt) <= now) {
+          return {
+            key: limit.kind,
+            label,
+            percent: 0,
+            detail: 'reset',
+            extra: [line(`reset at ${clockTime(new Date(limit.resetsAt))} · updates on the next response`)],
+            parts: [],
+            marks: [],
+          }
+        }
         const reset = untilReset(limit.resetsAt, now)
         const paceAt = pace(limit, now)
         const ahead = forecast(limit, now)
