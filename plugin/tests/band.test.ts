@@ -67,12 +67,12 @@ test('band shows context fill and each rate-limit window with time to reset', as
   const alts = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
   expect(alts[0]).toBe('ctx 42% · 84k/200k · compacts at 80% · Messages about 50k · System tools about 20k')
   // The reset clock is the machine's local time, so only its shape is pinned.
-  expect(alts[1]).toMatch(/^5h 12% · 3h20m · 33% of window elapsed · at the rate so far: 36% by reset · resets \d\d:\d\d$/)
+  expect(alts[1]).toMatch(/^5h 12% · 3h20m · 33% of window elapsed · on track for 36% at reset · resets \d\d:\d\d$/)
   expect(alts[2]).toMatch(
-    /^wk 89% · 2d21h · 59% of window elapsed · at the rate so far: full in 12h14m · resets (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/,
+    /^wk 89% · 2d21h · 59% of window elapsed · on track to run out in 12h14m · resets (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/,
   )
-  expect((await desktop.find({ type: 'Text', text: /^at the rate so far: full in 12h14m$/ }))?.props.color).toBe('warning')
-  expect((await desktop.find({ type: 'Text', text: /^at the rate so far: 36% by reset$/ }))?.props.color).toBeUndefined()
+  expect((await desktop.find({ type: 'Text', text: /^on track to run out in 12h14m$/ }))?.props.color).toBe('warning')
+  expect((await desktop.find({ type: 'Text', text: /^on track for 36% at reset$/ }))?.props.color).toBeUndefined()
   const [ctx, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(wk?.props.isInteractive).toBeUndefined()
   expect(ctx?.props.source).toContain('<rect x="63" width="2" height="12" fill="#c04742"/>')
