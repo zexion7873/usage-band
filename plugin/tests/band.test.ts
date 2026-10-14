@@ -1,6 +1,8 @@
 import type { On, SessionContextBreakdown, SessionMessage } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
+import { bar } from '../hooks/bar'
+
 const NOW = Date.parse('2026-10-06T00:00:00Z')
 
 const BAND = {
@@ -79,6 +81,10 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(fiveHour?.props.source).toContain('<rect x="25" width="2" height="12" fill="#9c9c9c"/>')
   expect(await desktop.find({ type: 'Text', text: /^cache 83%$/ })).toBeDefined()
   expect(wk?.props.source).toContain('#c04742')
+  // wk's 59% pace tick sits inside its 89% fill: white across the fill, grey stubs above and below.
+  expect(wk?.props.source).toContain(
+    '<rect x="46" width="2" height="2" fill="#9c9c9c"/><rect x="46" y="2" width="2" height="8" fill="#fff"/><rect x="46" y="10" width="2" height="2" fill="#9c9c9c"/>',
+  )
   expect((await desktop.find({ type: 'Text', text: /^89%$/ }))?.props.color).toBe('error')
   expect((await desktop.find({ type: 'Text', text: /^42%$/ }))?.props.dimColor).toBe(true)
   expect(await desktop.find({ type: 'Text', text: /^84k\/200k$/ })).toBeDefined()
@@ -86,6 +92,13 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(await desktop.find({ type: 'Text', text: /^3h20m$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^\$1\.23$/ })).toBeDefined()
   await desktop.unmount()
+})
+
+test('a tick level with the fill, or on an empty bar, keeps its own colour', async () => {
+  // 67% and 68% both land on pixel 54: the fill has reached the tick, not passed it.
+  expect(bar(67, [{ percent: 68, color: '#9c9c9c' }])).toContain('<rect x="53" width="2" height="12" fill="#9c9c9c"/>')
+  expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).toContain('<rect x="0" width="2" height="12" fill="#9c9c9c"/>')
+  expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).not.toContain('#fff')
 })
 
 test('band keeps what the plugins beneath it drew', async ($, on) => {
@@ -125,6 +138,51 @@ test('reset countdown keeps moving while the session sits idle', async ($, on) =
   await clock.advance(10 * 60_000)
   expect(await ui.find({ type: 'Text', text: /^3h10m$/ })).toBeDefined()
   await ui.unmount()
+})
+
+test('a window an idle session sat past the reset of reads reset, not its old fill', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 89, resetsAt: '2026-10-06T03:20:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+  await clock.advance(3 * 3_600_000 + 30 * 60_000)
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^reset$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^89%$/ })).toBeUndefined()
+  expect(await desktop.find({ type: 'Text', text: /^0m$/ })).toBeUndefined()
+  const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
+  expect(fiveHour?.props.source).not.toContain('#9c9c9c')
+  expect(fiveHour?.props.alt).toMatch(/^5h: reset · reset at \d\d:\d\d · new number after your next message$/)
+  await desktop.unmount()
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await terminal.findAll({ type: 'Text' })).map(t => t.text).join('|')).toContain('(reset)')
+  await terminal.unmount()
+})
+
+test('rate-limit figures read whole percents, and minutes alone under an hour', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 23.5, resetsAt: '2026-10-06T00:45:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^23%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^45m$/ })).toBeDefined()
+  await desktop.unmount()
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const texts = (await terminal.findAll({ type: 'Text' })).map(t => t.text).join('|')
+  expect(texts).toContain('23%')
+  expect(texts).toContain('(45m)')
+  await terminal.unmount()
 })
 
 test('band shows the context a compaction leaves, not the one it removed', async ($, on) => {

@@ -24,17 +24,18 @@ const duration = (ms: number) => {
   const minutes = Math.max(0, Math.round(ms / 60000))
   const days = Math.floor(minutes / 1440)
   const hours = Math.floor((minutes % 1440) / 60)
-  return days > 0 ? `${days}d${hours}h` : `${hours}h${minutes % 60}m`
+  return days > 0 ? `${days}d${hours}h` : hours > 0 ? `${hours}h${minutes % 60}m` : `${minutes}m`
 }
 
 const untilReset = (resetsAt: string | undefined, now: number) =>
   resetsAt === undefined ? '' : duration(Date.parse(resetsAt) - now)
 
+const clockTime = (at: Date) => `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+
 // Local time of the reset; the weekday only when it is a day or more away.
 const resetClock = (resetsAt: string, now: number) => {
   const at = new Date(resetsAt)
-  const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
-  return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${time}` : time
+  return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
 }
 
 const line = (text: string, isWarning = false) => ({ text, isWarning })
@@ -172,15 +173,30 @@ export const register: Register = on => {
       },
       ...current.rateLimits.map(limit => {
         const label = LABELS[limit.kind] ?? limit.kind
+        // A reading only moves when a response lands, so an idle session can sit past a reset with the old fill.
+        if (limit.resetsAt !== undefined && Date.parse(limit.resetsAt) <= now) {
+          return {
+            key: limit.kind,
+            label,
+            title: `${label}: reset`,
+            percent: 0,
+            detail: 'reset',
+            extra: [line(`reset at ${clockTime(new Date(limit.resetsAt))}`), line('new number after your next message')],
+            parts: [],
+            marks: [],
+          }
+        }
         const reset = untilReset(limit.resetsAt, now)
         const paceAt = pace(limit, now)
         const ahead = forecast(limit, now)
+        // The engine reports one decimal; the CLI's own notice floors it, and floor never shows 100% early.
+        const used = Math.floor(limit.percentUsed)
         return {
           key: limit.kind,
           label,
           // Plain words: many readers of the card do not have English as a first language.
-          title: `${label}: ${limit.percentUsed}% used`,
-          percent: limit.percentUsed,
+          title: `${label}: ${used}% used`,
+          percent: used,
           detail: reset,
           extra: [
             ...(paceAt === undefined ? [] : [line(`time passed: ${paceAt}%`)]),
