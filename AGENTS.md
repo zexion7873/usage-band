@@ -71,7 +71,11 @@ Two more have no test yet:
 The desktop bar is an SVG image, so theme keys never reach it — `FILL` and the
 tick colours in `plugin/hooks/bar.ts` are literals sampled from the app's own
 usage panel. The percent text beside it uses the theme keys `warning` /
-`error`. The 60% / 85% thresholds in `tone()` are quoted in `README.md`; change
+`error`. The `ctx` hover card's category squares are literals too
+(`CONTEXT_SWATCH` in `plugin/hooks/register.tsx`), sampled from the desktop
+`/context` panel, which colours categories by rank — the four largest blue,
+orange, green, amber, the rest grey — whatever their theme key. A category's
+own `color` key draws the terminal's palette instead. The 60% / 85% thresholds in `tone()` are quoted in `README.md`; change
 both.
 
 ## `plugin/hooks/bar.ts` stays plain

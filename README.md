@@ -66,10 +66,17 @@ Percent turns amber at 60% and red at 85%.
 
 ### 🖥️ Desktop and terminal
 
-On the desktop each meter is a bar, and a screen reader reads its detail: for
-`ctx`, the compact point and the three largest context categories; for a
-rate-limit window, the pace. The terminal draws the headline figures as one line
-of text:
+On the desktop each meter is a bar. Hover it for a card with its detail, which a
+screen reader also reads:
+
+- **`ctx`**: the compact point and the five largest context categories, marked
+  in the colours `/context` gives them. Their sizes are a local estimate (`~`)
+  and can differ from `/context`, which counts them exactly.
+- **A rate-limit window**: how much of the window has elapsed, where it ends up
+  if the rest of it burns at the rate so far — in amber when that runs it out
+  before the reset — and the local time it resets.
+
+The terminal draws the headline figures as one line of text:
 
 ```text
 ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · $1.23

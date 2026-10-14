@@ -65,11 +65,14 @@ test('band shows context fill and each rate-limit window with time to reset', as
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const alts = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
-  expect(alts).toEqual([
-    'ctx 42% · 84k/200k · compacts at 80% · Messages 50k · System tools 20k',
-    '5h 12% · 3h20m · pace 33%',
-    'wk 89% · 2d21h · pace 59%',
-  ])
+  expect(alts[0]).toBe('ctx 42% · 84k/200k · compacts at 80% · Messages about 50k · System tools about 20k')
+  // The reset clock is the machine's local time, so only its shape is pinned.
+  expect(alts[1]).toMatch(/^5h: 12% used · time passed: 33% · at this speed: 36% at reset · reset: \d\d:\d\d$/)
+  expect(alts[2]).toMatch(
+    /^wk: 89% used · time passed: 59% · at this speed: all used in 12h14m · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/,
+  )
+  expect((await desktop.find({ type: 'Text', text: /^at this speed: all used in 12h14m$/ }))?.props.color).toBe('warning')
+  expect((await desktop.find({ type: 'Text', text: /^at this speed: 36% at reset$/ }))?.props.color).toBeUndefined()
   const [ctx, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(wk?.props.isInteractive).toBeUndefined()
   expect(ctx?.props.source).toContain('<rect x="63" width="2" height="12" fill="#c04742"/>')
@@ -196,7 +199,69 @@ test('band keeps small context categories readable', async ($, on) => {
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [ctx] = await desktop.findAll({ type: 'Svg' })
-  expect(ctx?.props.alt).toBe('ctx 0% · compacts at 16% · System prompt 5k · Messages 412')
+  expect(ctx?.props.alt).toBe('ctx 0% · compacts at 16% · System prompt about 5k · Messages about 412')
+  await desktop.unmount()
+})
+
+test('desktop meter with detail reveals it in a hover card; one without draws none', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({
+    value: {
+      startedAt: NOW,
+      context: {
+        window: 1_000_000,
+        breakdown: {
+          ...BREAKDOWN,
+          categories: [
+            { name: 'Skills', tokens: 1000, color: 'warning', isDeferred: false, kind: 'used' },
+            { name: 'Messages', tokens: 6000, color: 'purple_FOR_SUBAGENTS_ONLY', isDeferred: false, kind: 'used' },
+            { name: 'MCP tools', tokens: 5000, color: 'cyan_FOR_SUBAGENTS_ONLY', isDeferred: false, kind: 'used' },
+            { name: 'System tools', tokens: 4000, color: 'inactive', isDeferred: false, kind: 'used' },
+            { name: 'Memory files', tokens: 3000, color: 'claude', isDeferred: false, kind: 'used' },
+            { name: 'Custom agents', tokens: 2000, color: 'permission', isDeferred: false, kind: 'used' },
+          ],
+        },
+      },
+      rateLimits: [],
+    },
+  }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  await $.session.measure({
+    context: { window: 1_000_000 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 12 }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const cards = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.display === 'none')
+  // FoundElement carries no `hover`, so the reveal itself is checked by eye on the desktop.
+  expect(cards.map(b => b.props.position)).toEqual(['absolute'])
+  expect(await desktop.find({ type: 'Text', text: /^ctx 0%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^compacts at 16%$/ })).toBeDefined()
+  const [ctx] = await desktop.findAll({ type: 'Svg' })
+  expect(ctx?.props.alt).toBe(
+    'ctx 0% · compacts at 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
+  )
+  expect(await desktop.find({ type: 'Text', text: /^Messages ~6k$/ })).toBeDefined()
+  // Hex values as sampled from the desktop /context panel, which colours the four largest and greys the rest.
+  const swatches = await desktop.findAll({ type: 'Text', text: /^■ $/ })
+  expect(swatches.map(s => s.props.color)).toEqual(['#3987e5', '#d95926', '#189e71', '#c98502', '#97958d'])
+  await desktop.unmount()
+})
+
+test('rate-limit forecast waits until a tenth of the window has passed', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T04:40:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
+  expect(fiveHour?.props.alt).toMatch(/^5h: 12% used · time passed: 7% · reset: \d\d:\d\d$/)
   await desktop.unmount()
 })
 
