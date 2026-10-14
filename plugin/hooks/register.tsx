@@ -12,12 +12,42 @@ const WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day:
 
 const TEXT_COLOR = { calm: undefined, hot: 'warning', over: 'error' } as const
 
-const untilReset = (resetsAt: string | undefined, now: number) => {
-  if (resetsAt === undefined) return ''
-  const minutes = Math.max(0, Math.round((Date.parse(resetsAt) - now) / 60000))
+// The desktop /context panel colours categories by rank, whatever their theme key: literals sampled from that panel.
+const CONTEXT_SWATCH = ['#3987e5', '#d95926', '#189e71', '#c98502']
+const CONTEXT_SWATCH_REST = '#97958d'
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// Under this share of the window elapsed, a straight-line forecast swings on every response.
+const MIN_FORECAST_PCT = 10
+
+const duration = (ms: number) => {
+  const minutes = Math.max(0, Math.round(ms / 60000))
   const days = Math.floor(minutes / 1440)
   const hours = Math.floor((minutes % 1440) / 60)
   return days > 0 ? `${days}d${hours}h` : `${hours}h${minutes % 60}m`
+}
+
+const untilReset = (resetsAt: string | undefined, now: number) =>
+  resetsAt === undefined ? '' : duration(Date.parse(resetsAt) - now)
+
+// Local time of the reset; the weekday only when it is a day or more away.
+const resetClock = (resetsAt: string, now: number) => {
+  const at = new Date(resetsAt)
+  const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+  return at.getTime() - now >= 86_400_000 ? `resets ${DAYS[at.getDay()]} ${time}` : `resets ${time}`
+}
+
+// Where the window ends up if the rest of it burns at the rate so far.
+const forecast = (limit: SessionRateLimit, now: number) => {
+  const span = WINDOW_MS[limit.kind]
+  if (span === undefined || limit.resetsAt === undefined || limit.percentUsed >= 100) return undefined
+  const left = Date.parse(limit.resetsAt) - now
+  const elapsed = span - left
+  if (left <= 0 || elapsed < (span * MIN_FORECAST_PCT) / 100) return undefined
+  const atReset = (limit.percentUsed * span) / elapsed
+  return atReset < 100
+    ? `at this pace: ${Math.round(atReset)}% by reset`
+    : `at this pace: full in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
@@ -44,7 +74,7 @@ const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number
     contextParts: breakdown.categories
       .filter(c => c.kind === 'used')
       .sort((a, b) => b.tokens - a.tokens)
-      .slice(0, 3)
+      .slice(0, 5)
       .map(c => ({ name: c.name, tokens: c.tokens })),
   }
 }
@@ -128,22 +158,31 @@ export const register: Register = on => {
         label: 'ctx',
         percent: ctxPercent,
         detail: ctxDetail,
-        extra: [
-          ...(detail?.compactPercent === undefined ? [] : [`compacts at ${detail.compactPercent}%`]),
-          ...(detail?.contextParts ?? []).map(p => `${p.name} ${tokens(p.tokens)}`),
-        ],
+        extra: detail?.compactPercent === undefined ? [] : [`compacts at ${detail.compactPercent}%`],
+        // The summary breakdown is a local estimate; /context counts with the token-count API.
+        parts: (detail?.contextParts ?? []).map((p, rank) => ({
+          name: p.name,
+          size: tokens(p.tokens),
+          color: CONTEXT_SWATCH[rank] ?? CONTEXT_SWATCH_REST,
+        })),
         marks: detail?.compactPercent === undefined ? [] : [{ percent: detail.compactPercent, color: COMPACT_TICK }],
       },
       ...current.rateLimits.map(limit => {
         const label = LABELS[limit.kind] ?? limit.kind
         const reset = untilReset(limit.resetsAt, now)
         const paceAt = pace(limit, now)
+        const ahead = forecast(limit, now)
         return {
           key: limit.kind,
           label,
           percent: limit.percentUsed,
           detail: reset,
-          extra: paceAt === undefined ? [] : [`pace ${paceAt}%`],
+          extra: [
+            ...(paceAt === undefined ? [] : [`pace ${paceAt}%`]),
+            ...(ahead === undefined ? [] : [ahead]),
+            ...(limit.resetsAt === undefined ? [] : [resetClock(limit.resetsAt, now)]),
+          ],
+          parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
         }
       }),
@@ -184,7 +223,7 @@ export const register: Register = on => {
                 <Text dimColor>{m.label}</Text>
                 <Svg
                   source={bar(m.percent, m.marks)}
-                  alt={[`${m.label} ${m.percent}%`, m.detail, ...m.extra].filter(Boolean).join(' · ')}
+                  alt={[`${m.label} ${m.percent}%`, m.detail, ...m.extra, ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
                   width={BAR.width}
                   height={BAR.tick}
                 />
@@ -194,12 +233,18 @@ export const register: Register = on => {
                   <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
                 )}
                 {m.detail && <Text dimColor>{m.detail}</Text>}
-                {m.extra.length > 0 && (
+                {m.extra.length + m.parts.length > 0 && (
                   // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
                   <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                     <Text>{[`${m.label} ${m.percent}%`, m.detail].filter(Boolean).join(' · ')}</Text>
                     {m.extra.map(line => (
                       <Text key={line} dimColor>{line}</Text>
+                    ))}
+                    {m.parts.map(p => (
+                      <Text key={p.name}>
+                        <Text color={p.color}>■ </Text>
+                        <Text dimColor>{`${p.name} ~${p.size}`}</Text>
+                      </Text>
                     ))}
                   </Box>
                 )}
