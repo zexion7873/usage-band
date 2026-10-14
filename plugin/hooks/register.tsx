@@ -49,8 +49,8 @@ const forecast = (limit: SessionRateLimit, now: number) => {
   if (left <= 0 || elapsed < (span * MIN_FORECAST_PCT) / 100) return undefined
   const atReset = (limit.percentUsed * span) / elapsed
   return atReset < 100
-    ? line(`at the rate so far: ${Math.round(atReset)}% by reset`)
-    : line(`at the rate so far: full in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
+    ? line(`on track for ${Math.round(atReset)}% at reset`)
+    : line(`on track to run out in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
