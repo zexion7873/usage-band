@@ -194,6 +194,15 @@ export const register: Register = on => {
                   <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
                 )}
                 {m.detail && <Text dimColor>{m.detail}</Text>}
+                {m.extra.length > 0 && (
+                  // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
+                  <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
+                    <Text>{[`${m.label} ${m.percent}%`, m.detail].filter(Boolean).join(' · ')}</Text>
+                    {m.extra.map(line => (
+                      <Text key={line} dimColor>{line}</Text>
+                    ))}
+                  </Box>
+                )}
               </Box>
             ))}
             {cache && <Text dimColor>{cache}</Text>}

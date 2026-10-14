@@ -200,6 +200,39 @@ test('band keeps small context categories readable', async ($, on) => {
   await desktop.unmount()
 })
 
+test('desktop meter with detail reveals it in a hover card; one without draws none', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({
+    value: {
+      startedAt: NOW,
+      context: {
+        window: 1_000_000,
+        breakdown: {
+          ...BREAKDOWN,
+          categories: [{ name: 'System prompt', tokens: 5000, color: 'inactive', isDeferred: false, kind: 'used' }],
+        },
+      },
+      rateLimits: [],
+    },
+  }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  await $.session.measure({
+    context: { window: 1_000_000 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 12 }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const cards = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.display === 'none')
+  // FoundElement carries no `hover`, so the reveal itself is checked by eye on the desktop.
+  expect(cards.map(b => b.props.position)).toEqual(['absolute'])
+  expect(await desktop.find({ type: 'Text', text: /^ctx 0%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^compacts at 16%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^System prompt 5k$/ })).toBeDefined()
+  await desktop.unmount()
+})
+
 test('desktop band wraps its meters in a narrow pane instead of overlapping them', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)

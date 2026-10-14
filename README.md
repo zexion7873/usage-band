@@ -66,10 +66,10 @@ Percent turns amber at 60% and red at 85%.
 
 ### 🖥️ Desktop and terminal
 
-On the desktop each meter is a bar, and a screen reader reads its detail: for
-`ctx`, the compact point and the three largest context categories; for a
-rate-limit window, the pace. The terminal draws the headline figures as one line
-of text:
+On the desktop each meter is a bar. Hover it for a card with its detail, which a
+screen reader also reads: for `ctx`, the compact point and the three largest
+context categories; for a rate-limit window, the pace. The terminal draws the
+headline figures as one line of text:
 
 ```text
 ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · $1.23
