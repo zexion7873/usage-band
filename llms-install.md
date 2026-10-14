@@ -45,7 +45,7 @@ configure.
 A session gains a plugin only at session start, so the band does not appear in
 sessions that were already open — including, usually, the one you are running
 in. Tell the user the band shows up in their next session, above the prompt,
-after the first response fills in the figures.
+as soon as it starts; the rate-limit windows fill in after the first response.
 
 ## Uninstall
 

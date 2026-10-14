@@ -60,7 +60,7 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 | ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. |
 | 💳 | **`spend`** | The spend limit, when the account has one. |
 | ♻️ | **`cache N%`** | Cache reads as a share of all input tokens in the last response. |
-| 💵 | **`$N.NN`** | Session cost. |
+| 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription this is not what you are billed — your plan counts against the `5h` / `wk` limits. |
 
 Percent turns amber at 60% and red at 85%.
 
@@ -89,10 +89,10 @@ response brings its new figure.
 
 ### 🎯 Use cases
 
-- **Compact on your terms.** Before starting a long task, compare the `ctx`
-  fill with its red tick. Close to the tick, run `/compact` or start a fresh
+- **Compact on your terms.** Before starting a long task, compare the desktop
+  `ctx` fill with its red tick. Close to the tick, run `/compact` or start a fresh
   session now, instead of having auto-compact fire halfway through the work.
-- **Pace a rate-limit window.** When the `5h` fill runs past its tick, you
+- **Pace a rate-limit window.** On the desktop, when the `5h` fill runs past its tick, you
   are spending faster than an even pace and will hit the limit before it
   resets. The countdown beside it says how long the rest has to last.
 - **See usage in the desktop app at all.** In the Code tab, where status-line
@@ -145,8 +145,8 @@ writes no files, opens no ports, and makes no network requests or model calls �
 
 | Symptom | Check |
 |---|---|
-| No band at all | `claude plugin list` should show `usage-band@usage-band` as loaded. A session picks up plugins only when it starts, so open a new one after installing or updating. Mods also need a recent Claude Code — see Requirements. |
-| Band missing for a moment | It steps aside while Claude Code shows a survey above the prompt, and draws nothing until the session has reported its first usage. |
+| No band at all | `claude plugin list` should show `usage-band@usage-band` as loaded. A session picks up plugins only when it starts, so open a new one after installing or updating. Mods also need a recent Claude Code — see Requirements. The band draws in a terminal session (an editor's integrated terminal included) and the desktop app's Code tab; the VS Code extension's panel and the mobile app draw none. |
+| Band missing for a moment | It steps aside while Claude Code shows a survey above the prompt, and draws nothing until the session has started. |
 | No `5h` / `wk` / `spend` | Only the windows Claude Code reports for your account are drawn; `spend` appears only with a spend limit. |
 | A figure looks wrong | Compare it with Claude Code's own usage panel, then [open a bug](https://github.com/zexion7873/usage-band/issues/new?template=bug.yml) with both values and where you ran it. |
 
