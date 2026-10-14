@@ -69,12 +69,12 @@ test('band shows context fill and each rate-limit window with time to reset', as
   const alts = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
   expect(alts[0]).toBe('ctx 42% · 84k/200k · compacts at 80% · Messages about 50k · System tools about 20k')
   // The reset clock is the machine's local time, so only its shape is pinned.
-  expect(alts[1]).toMatch(/^5h 12% · 3h20m · 33% of window elapsed · on track for 36% at reset · resets \d\d:\d\d$/)
+  expect(alts[1]).toMatch(/^5h: 12% used · time passed: 33% · at this speed: 36% at reset · reset: \d\d:\d\d \(in 3h20m\)$/)
   expect(alts[2]).toMatch(
-    /^wk 89% · 2d21h · 59% of window elapsed · on track to run out in 12h14m · resets (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/,
+    /^wk: 89% used · time passed: 59% · at this speed: all used in 12h14m · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d \(in 2d21h\)$/,
   )
-  expect((await desktop.find({ type: 'Text', text: /^on track to run out in 12h14m$/ }))?.props.color).toBe('warning')
-  expect((await desktop.find({ type: 'Text', text: /^on track for 36% at reset$/ }))?.props.color).toBeUndefined()
+  expect((await desktop.find({ type: 'Text', text: /^at this speed: all used in 12h14m$/ }))?.props.color).toBe('warning')
+  expect((await desktop.find({ type: 'Text', text: /^at this speed: 36% at reset$/ }))?.props.color).toBeUndefined()
   const [ctx, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(wk?.props.isInteractive).toBeUndefined()
   expect(ctx?.props.source).toContain('<rect x="63" width="2" height="12" fill="#c04742"/>')
@@ -156,7 +156,7 @@ test('a window an idle session sat past the reset of reads reset, not its old fi
   expect(await desktop.find({ type: 'Text', text: /^0m$/ })).toBeUndefined()
   const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
   expect(fiveHour?.props.source).not.toContain('#9c9c9c')
-  expect(fiveHour?.props.alt).toMatch(/^5h 0% · reset · reset at \d\d:\d\d · updates on the next response$/)
+  expect(fiveHour?.props.alt).toMatch(/^5h: reset · reset at \d\d:\d\d · new number after your next message$/)
   await desktop.unmount()
 
   const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
@@ -319,7 +319,7 @@ test('rate-limit forecast waits until a tenth of the window has passed', async (
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
-  expect(fiveHour?.props.alt).toMatch(/^5h 12% · 4h40m · 7% of window elapsed · resets \d\d:\d\d$/)
+  expect(fiveHour?.props.alt).toMatch(/^5h: 12% used · time passed: 7% · reset: \d\d:\d\d \(in 4h40m\)$/)
   await desktop.unmount()
 })
 
