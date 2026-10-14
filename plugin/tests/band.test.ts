@@ -140,7 +140,7 @@ test('a window an idle session sat past the reset of reads reset, not its old fi
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await desktop.find({ type: 'Text', text: /^reset$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^89%$/ })).toBeUndefined()
-  expect(await desktop.find({ type: 'Text', text: /0h0m/ })).toBeUndefined()
+  expect(await desktop.find({ type: 'Text', text: /^0m$/ })).toBeUndefined()
   const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
   expect(fiveHour?.props.source).not.toContain('#9c9c9c')
   expect(fiveHour?.props.alt).toMatch(/^5h 0% · reset · reset at \d\d:\d\d · updates on the next response$/)
@@ -148,6 +148,27 @@ test('a window an idle session sat past the reset of reads reset, not its old fi
 
   const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect((await terminal.findAll({ type: 'Text' })).map(t => t.text).join('|')).toContain('(reset)')
+  await terminal.unmount()
+})
+
+test('rate-limit figures read whole percents, and minutes alone under an hour', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 23.5, resetsAt: '2026-10-06T00:45:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^23%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^45m$/ })).toBeDefined()
+  await desktop.unmount()
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const texts = (await terminal.findAll({ type: 'Text' })).map(t => t.text).join('|')
+  expect(texts).toContain('23%')
+  expect(texts).toContain('(45m)')
   await terminal.unmount()
 })
 

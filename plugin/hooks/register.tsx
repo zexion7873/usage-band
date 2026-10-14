@@ -24,7 +24,7 @@ const duration = (ms: number) => {
   const minutes = Math.max(0, Math.round(ms / 60000))
   const days = Math.floor(minutes / 1440)
   const hours = Math.floor((minutes % 1440) / 60)
-  return days > 0 ? `${days}d${hours}h` : `${hours}h${minutes % 60}m`
+  return days > 0 ? `${days}d${hours}h` : hours > 0 ? `${hours}h${minutes % 60}m` : `${minutes}m`
 }
 
 const untilReset = (resetsAt: string | undefined, now: number) =>
@@ -190,7 +190,8 @@ export const register: Register = on => {
         return {
           key: limit.kind,
           label,
-          percent: limit.percentUsed,
+          // The engine reports one decimal; the CLI's own notice floors it, and floor never shows 100% early.
+          percent: Math.floor(limit.percentUsed),
           detail: reset,
           extra: [
             ...(paceAt === undefined ? [] : [line(`${paceAt}% of window elapsed`)]),
