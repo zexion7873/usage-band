@@ -213,5 +213,6 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const rows = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexDirection === 'row' && b.props.gap !== 1)
   expect(rows.map(b => b.props.flexWrap)).toEqual(['wrap', 'wrap'])
+  expect(rows.map(b => b.props.rowGap)).toEqual([1, 1])
   await desktop.unmount()
 })

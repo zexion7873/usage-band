@@ -175,9 +175,10 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         {below}
-        {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps. */}
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between">
-          <Box flexDirection="row" flexWrap="wrap" alignItems="center" gap={3}>
+        {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps.
+            Both rows share one rowGap, or a wrapped cost line hugs the meters above it. */}
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" columnGap={3} rowGap={1}>
+          <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={3} rowGap={1}>
             {meters.map(m => (
               <Box key={m.key} flexDirection="row" alignItems="center" gap={1}>
                 <Text dimColor>{m.label}</Text>
