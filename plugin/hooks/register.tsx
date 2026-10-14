@@ -34,7 +34,7 @@ const untilReset = (resetsAt: string | undefined, now: number) =>
 const resetClock = (resetsAt: string, now: number) => {
   const at = new Date(resetsAt)
   const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
-  return at.getTime() - now >= 86_400_000 ? `resets ${DAYS[at.getDay()]} ${time}` : `resets ${time}`
+  return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${time}` : time
 }
 
 const line = (text: string, isWarning = false) => ({ text, isWarning })
@@ -48,8 +48,8 @@ const forecast = (limit: SessionRateLimit, now: number) => {
   if (left <= 0 || elapsed < (span * MIN_FORECAST_PCT) / 100) return undefined
   const atReset = (limit.percentUsed * span) / elapsed
   return atReset < 100
-    ? line(`on track for ${Math.round(atReset)}% at reset`)
-    : line(`on track to run out in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
+    ? line(`at this speed: ${Math.round(atReset)}% at reset`)
+    : line(`at this speed: all used in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
@@ -158,6 +158,7 @@ export const register: Register = on => {
       {
         key: 'ctx',
         label: 'ctx',
+        title: [`ctx ${ctxPercent}%`, ctxDetail].filter(Boolean).join(' · '),
         percent: ctxPercent,
         detail: ctxDetail,
         extra: detail?.compactPercent === undefined ? [] : [line(`compacts at ${detail.compactPercent}%`)],
@@ -177,12 +178,14 @@ export const register: Register = on => {
         return {
           key: limit.kind,
           label,
+          // Plain words: many readers of the card do not have English as a first language.
+          title: `${label}: ${limit.percentUsed}% used`,
           percent: limit.percentUsed,
           detail: reset,
           extra: [
-            ...(paceAt === undefined ? [] : [line(`${paceAt}% of window elapsed`)]),
+            ...(paceAt === undefined ? [] : [line(`time passed: ${paceAt}%`)]),
             ...(ahead === undefined ? [] : [ahead]),
-            ...(limit.resetsAt === undefined ? [] : [line(resetClock(limit.resetsAt, now))]),
+            ...(limit.resetsAt === undefined ? [] : [line(`reset: ${resetClock(limit.resetsAt, now)} (in ${reset})`)]),
           ],
           parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
@@ -225,7 +228,7 @@ export const register: Register = on => {
                 <Text dimColor>{m.label}</Text>
                 <Svg
                   source={bar(m.percent, m.marks)}
-                  alt={[`${m.label} ${m.percent}%`, m.detail, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
+                  alt={[m.title, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
                   width={BAR.width}
                   height={BAR.tick}
                 />
@@ -238,7 +241,7 @@ export const register: Register = on => {
                 {m.extra.length + m.parts.length > 0 && (
                   // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
                   <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
-                    <Text>{[`${m.label} ${m.percent}%`, m.detail].filter(Boolean).join(' · ')}</Text>
+                    <Text>{m.title}</Text>
                     {m.extra.map(l =>
                       l.isWarning ? (
                         <Text key={l.text} color="warning">{l.text}</Text>
