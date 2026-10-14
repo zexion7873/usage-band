@@ -185,7 +185,7 @@ export const register: Register = on => {
           extra: [
             ...(paceAt === undefined ? [] : [line(`time passed: ${paceAt}%`)]),
             ...(ahead === undefined ? [] : [ahead]),
-            ...(limit.resetsAt === undefined ? [] : [line(`reset: ${resetClock(limit.resetsAt, now)} (in ${reset})`)]),
+            ...(limit.resetsAt === undefined ? [] : [line(`reset: ${resetClock(limit.resetsAt, now)}`)]),
           ],
           parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
