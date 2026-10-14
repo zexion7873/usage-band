@@ -135,3 +135,7 @@ requirements line names; bump both together.
 
 The version line in `plugin/.claude-plugin/plugin.json` landing on `main` is
 the publish. Tags play no part.
+
+A repository ruleset on `main` takes a change only through a pull request whose
+`check` job passed, and refuses a direct push, a force-push and deletion. Rename
+the job and the ruleset's required check must follow, or every PR blocks.
