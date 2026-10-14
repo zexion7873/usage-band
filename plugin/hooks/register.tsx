@@ -37,7 +37,9 @@ const resetClock = (resetsAt: string, now: number) => {
   return at.getTime() - now >= 86_400_000 ? `resets ${DAYS[at.getDay()]} ${time}` : `resets ${time}`
 }
 
-// Where the window ends up if the rest of it burns at the rate so far.
+const line = (text: string, isWarning = false) => ({ text, isWarning })
+
+// Where the window ends up if the rest of it burns at the rate so far; running out before the reset is a warning.
 const forecast = (limit: SessionRateLimit, now: number) => {
   const span = WINDOW_MS[limit.kind]
   if (span === undefined || limit.resetsAt === undefined || limit.percentUsed >= 100) return undefined
@@ -46,8 +48,8 @@ const forecast = (limit: SessionRateLimit, now: number) => {
   if (left <= 0 || elapsed < (span * MIN_FORECAST_PCT) / 100) return undefined
   const atReset = (limit.percentUsed * span) / elapsed
   return atReset < 100
-    ? `at this pace: ${Math.round(atReset)}% by reset`
-    : `at this pace: full in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`
+    ? line(`at the rate so far: ${Math.round(atReset)}% by reset`)
+    : line(`at the rate so far: full in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
@@ -158,7 +160,7 @@ export const register: Register = on => {
         label: 'ctx',
         percent: ctxPercent,
         detail: ctxDetail,
-        extra: detail?.compactPercent === undefined ? [] : [`compacts at ${detail.compactPercent}%`],
+        extra: detail?.compactPercent === undefined ? [] : [line(`compacts at ${detail.compactPercent}%`)],
         // The summary breakdown is a local estimate; /context counts with the token-count API.
         parts: (detail?.contextParts ?? []).map((p, rank) => ({
           name: p.name,
@@ -178,9 +180,9 @@ export const register: Register = on => {
           percent: limit.percentUsed,
           detail: reset,
           extra: [
-            ...(paceAt === undefined ? [] : [`pace ${paceAt}%`]),
+            ...(paceAt === undefined ? [] : [line(`${paceAt}% of window elapsed`)]),
             ...(ahead === undefined ? [] : [ahead]),
-            ...(limit.resetsAt === undefined ? [] : [resetClock(limit.resetsAt, now)]),
+            ...(limit.resetsAt === undefined ? [] : [line(resetClock(limit.resetsAt, now))]),
           ],
           parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
@@ -223,7 +225,7 @@ export const register: Register = on => {
                 <Text dimColor>{m.label}</Text>
                 <Svg
                   source={bar(m.percent, m.marks)}
-                  alt={[`${m.label} ${m.percent}%`, m.detail, ...m.extra, ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
+                  alt={[`${m.label} ${m.percent}%`, m.detail, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
                   width={BAR.width}
                   height={BAR.tick}
                 />
@@ -237,9 +239,13 @@ export const register: Register = on => {
                   // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
                   <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                     <Text>{[`${m.label} ${m.percent}%`, m.detail].filter(Boolean).join(' · ')}</Text>
-                    {m.extra.map(line => (
-                      <Text key={line} dimColor>{line}</Text>
-                    ))}
+                    {m.extra.map(l =>
+                      l.isWarning ? (
+                        <Text key={l.text} color="warning">{l.text}</Text>
+                      ) : (
+                        <Text key={l.text} dimColor>{l.text}</Text>
+                      ),
+                    )}
                     {m.parts.map(p => (
                       <Text key={p.name}>
                         <Text color={p.color}>■ </Text>

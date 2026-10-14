@@ -72,8 +72,9 @@ screen reader also reads:
 - **`ctx`**: the compact point and the five largest context categories, marked
   in the colours `/context` gives them. Their sizes are a local estimate (`~`)
   and can differ from `/context`, which counts them exactly.
-- **A rate-limit window**: the pace, where the window ends up if the rest of it
-  burns at the rate so far, and the local time it resets.
+- **A rate-limit window**: how much of the window has elapsed, where it ends up
+  if the rest of it burns at the rate so far — in amber when that runs it out
+  before the reset — and the local time it resets.
 
 The terminal draws the headline figures as one line of text:
 
