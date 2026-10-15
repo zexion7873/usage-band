@@ -159,10 +159,10 @@ export const register: Register = on => {
       {
         key: 'ctx',
         label: 'ctx',
-        title: [`ctx ${ctxPercent}%`, ctxDetail].filter(Boolean).join(' · '),
+        title: `ctx: ${ctxPercent}% used`,
         percent: ctxPercent,
         detail: ctxDetail,
-        extra: detail?.compactPercent === undefined ? [] : [line(`compacts at ${detail.compactPercent}%`)],
+        extra: detail?.compactPercent === undefined ? [] : [line(`auto-compact: at ${detail.compactPercent}%`)],
         // The summary breakdown is a local estimate; /context counts with the token-count API.
         parts: (detail?.contextParts ?? []).map((p, rank) => ({
           name: p.name,

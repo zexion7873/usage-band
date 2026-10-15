@@ -67,7 +67,7 @@ test('band shows context fill and each rate-limit window with time to reset', as
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const alts = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
-  expect(alts[0]).toBe('ctx 42% · 84k/200k · compacts at 80% · Messages about 50k · System tools about 20k')
+  expect(alts[0]).toBe('ctx: 42% used · auto-compact: at 80% · Messages about 50k · System tools about 20k')
   // The reset clock is the machine's local time, so only its shape is pinned.
   expect(alts[1]).toMatch(/^5h: 12% used · time passed: 33% · at this speed: 36% at reset · reset: \d\d:\d\d$/)
   expect(alts[2]).toMatch(
@@ -257,7 +257,7 @@ test('band keeps small context categories readable', async ($, on) => {
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [ctx] = await desktop.findAll({ type: 'Svg' })
-  expect(ctx?.props.alt).toBe('ctx 0% · compacts at 16% · System prompt about 5k · Messages about 412')
+  expect(ctx?.props.alt).toBe('ctx: 0% used · auto-compact: at 16% · System prompt about 5k · Messages about 412')
   await desktop.unmount()
 })
 
@@ -295,11 +295,11 @@ test('desktop meter with detail reveals it in a hover card; one without draws no
   const cards = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.display === 'none')
   // FoundElement carries no `hover`, so the reveal itself is checked by eye on the desktop.
   expect(cards.map(b => b.props.position)).toEqual(['absolute'])
-  expect(await desktop.find({ type: 'Text', text: /^ctx 0%$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^compacts at 16%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^ctx: 0% used$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^auto-compact: at 16%$/ })).toBeDefined()
   const [ctx] = await desktop.findAll({ type: 'Svg' })
   expect(ctx?.props.alt).toBe(
-    'ctx 0% · compacts at 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
+    'ctx: 0% used · auto-compact: at 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
   )
   expect(await desktop.find({ type: 'Text', text: /^Messages ~6k$/ })).toBeDefined()
   // Hex values as sampled from the desktop /context panel, which colours the four largest and greys the rest.
