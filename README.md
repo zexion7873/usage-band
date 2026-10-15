@@ -69,9 +69,11 @@ Percent turns amber at 60% and red at 85%.
 On the desktop each meter is a bar. Hover it for a card with its detail, which a
 screen reader also reads:
 
-- **`ctx`**: the compact point and the five largest context categories, marked
-  in the colours `/context` gives them. Their sizes are a local estimate (`~`)
-  and can differ from `/context`, which counts them exactly.
+- **`ctx`**: the compact point and the five largest context categories. Their
+  sizes are a local estimate (`~`) and can differ from `/context`, which counts
+  them exactly. Each square marks a rank the way `/context` colours its own —
+  blue, orange, green, amber, then grey — so where the two rankings differ, a
+  category's colour differs too.
 - **A rate-limit window**: how much of the window has elapsed, where it ends up
   if the rest of it burns at the rate so far — in amber when that runs it out
   before the reset — and the local time it resets.
