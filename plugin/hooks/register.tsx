@@ -216,7 +216,8 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column">
           {below}
-          <Box>
+          {/* One Text, cut at the edge: a row of Texts wraps each meter in a column of its own once the line overflows. */}
+          <Text wrap="truncate-end">
             {meters.map((m, i) => (
               <Text key={m.key}>
                 <Text dimColor>{i > 0 ? ' · ' : ''}{m.label} </Text>
@@ -226,7 +227,7 @@ export const register: Register = on => {
             ))}
             {cache && <Text dimColor> · {cache}</Text>}
             {cost && <Text dimColor> · {cost}</Text>}
-          </Box>
+          </Text>
         </Box>
       )
     }

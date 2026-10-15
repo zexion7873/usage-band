@@ -341,3 +341,21 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   expect(cost.map(b => b.props.justifyContent)).toEqual(['flex-end'])
   await desktop.unmount()
 })
+
+test('terminal band stays one line, cut at the edge rather than wrapped meter by meter', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T03:20:00Z' }],
+    cost: { usd: 1.234 },
+    changed: ['context', 'rateLimits'],
+  })
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const lines = (await terminal.findAll({ type: 'Text' })).filter(t => t.props.wrap !== undefined)
+  expect(lines.map(t => [t.props.wrap, t.text])).toEqual([
+    ['truncate-end', 'ctx 42% (84k/200k) · 5h 12% (3h20m) · cache 83% · $1.23'],
+  ])
+  await terminal.unmount()
+})
