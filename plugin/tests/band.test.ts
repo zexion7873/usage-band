@@ -334,8 +334,10 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   })
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  const rows = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexDirection === 'row' && b.props.gap !== 1)
-  expect(rows.map(b => b.props.flexWrap)).toEqual(['wrap', 'wrap'])
-  expect(rows.map(b => b.props.rowGap)).toEqual([1, 1])
+  // One wrap row for meters, cache and cost: a nested wrap row pushed the cost onto a line of its own.
+  const rows = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexWrap !== undefined)
+  expect(rows.map(b => [b.props.flexWrap, b.props.rowGap])).toEqual([['wrap', 1]])
+  const cost = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexGrow === 1)
+  expect(cost.map(b => b.props.justifyContent)).toEqual(['flex-end'])
   await desktop.unmount()
 })

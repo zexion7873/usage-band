@@ -236,48 +236,50 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {below}
         {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps.
-            Both rows share one rowGap, or a wrapped cost line hugs the meters above it. */}
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" columnGap={3} rowGap={1}>
-          <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={3} rowGap={1}>
-            {meters.map(m => (
-              <Box key={m.key} flexDirection="row" alignItems="center" gap={1}>
-                <Text dimColor>{m.label}</Text>
-                <Svg
-                  source={bar(m.percent, m.marks)}
-                  alt={[m.title, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
-                  width={BAR.width}
-                  height={BAR.tick}
-                />
-                {tone(m.percent) === 'calm' ? (
-                  <Text dimColor>{m.percent}%</Text>
-                ) : (
-                  <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
-                )}
-                {m.detail && <Text dimColor>{m.detail}</Text>}
-                {m.extra.length + m.parts.length > 0 && (
-                  // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
-                  <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
-                    <Text>{m.title}</Text>
-                    {m.extra.map(l =>
-                      l.isWarning ? (
-                        <Text key={l.text} color="warning">{l.text}</Text>
-                      ) : (
-                        <Text key={l.text} dimColor>{l.text}</Text>
-                      ),
-                    )}
-                    {m.parts.map(p => (
-                      <Text key={p.name}>
-                        <Text color={p.color}>■ </Text>
-                        <Text dimColor>{`${p.name} ~${p.size}`}</Text>
-                      </Text>
-                    ))}
-                  </Box>
-                )}
-              </Box>
-            ))}
-            {cache && <Text dimColor>{cache}</Text>}
-          </Box>
-          {cost && <Text dimColor>{cost}</Text>}
+            One wrap row: a nested one took a whole line once it overflowed, pushing the cost onto a line alone. */}
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={3} rowGap={1}>
+          {meters.map(m => (
+            <Box key={m.key} flexDirection="row" alignItems="center" gap={1}>
+              <Text dimColor>{m.label}</Text>
+              <Svg
+                source={bar(m.percent, m.marks)}
+                alt={[m.title, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
+                width={BAR.width}
+                height={BAR.tick}
+              />
+              {tone(m.percent) === 'calm' ? (
+                <Text dimColor>{m.percent}%</Text>
+              ) : (
+                <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
+              )}
+              {m.detail && <Text dimColor>{m.detail}</Text>}
+              {m.extra.length + m.parts.length > 0 && (
+                // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
+                <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
+                  <Text>{m.title}</Text>
+                  {m.extra.map(l =>
+                    l.isWarning ? (
+                      <Text key={l.text} color="warning">{l.text}</Text>
+                    ) : (
+                      <Text key={l.text} dimColor>{l.text}</Text>
+                    ),
+                  )}
+                  {m.parts.map(p => (
+                    <Text key={p.name}>
+                      <Text color={p.color}>■ </Text>
+                      <Text dimColor>{`${p.name} ~${p.size}`}</Text>
+                    </Text>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          ))}
+          {cache && <Text dimColor>{cache}</Text>}
+          {cost && (
+            <Box flexDirection="row" flexGrow={1} justifyContent="flex-end">
+              <Text dimColor>{cost}</Text>
+            </Box>
+          )}
         </Box>
       </Box>
     )
