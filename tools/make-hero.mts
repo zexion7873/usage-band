@@ -33,7 +33,7 @@ for (const m of meters) {
   parts.push(text(x, `${m.percent}%`, 'tone' in m ? TEXT_COLOR[m.tone] : DIM))
   x += `${m.percent}%`.length * CHAR + GAP
   parts.push(text(x, m.detail))
-  x += m.detail.length * CHAR + 3 * CHAR
+  x += m.detail.length * CHAR + 2 * CHAR
 }
 parts.push(text(x, 'cache 83%'))
 const cost = '$1.23'
