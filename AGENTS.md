@@ -58,6 +58,9 @@ reds one is a change in behaviour, not a test to update.
   `session.compact` writes the result's `tokensAfter` — after a compaction
   `$.session.usage()` still reports the last response's fill. Both skip
   subagents; compaction also skips `precompute`.
+- **Keep the terminal band to one line.** It is one `Text` with
+  `wrap="truncate-end"`; a row of sibling Texts wraps each meter in a column of
+  its own once the line outgrows the terminal.
 
 Two more have no test yet:
 

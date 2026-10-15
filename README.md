@@ -84,6 +84,9 @@ The terminal draws the headline figures as one line of text:
 ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · $1.23
 ```
 
+In a terminal too narrow for all of it, the line stays one line and ends in
+`…`; the cost goes first, then the cache.
+
 Reset countdowns and pace ticks keep moving while the session sits idle — the
 band redraws once a minute rather than waiting for the next response. A window
 whose reset passes while the session sits idle reads `reset` until the next
