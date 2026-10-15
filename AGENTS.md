@@ -75,7 +75,9 @@ usage panel. A tick the fill has passed turns white across the fill: that
 theme keys `warning` / `error`. The `ctx` hover card's category squares are literals too
 (`CONTEXT_SWATCH` in `plugin/hooks/register.tsx`), sampled from the desktop
 `/context` panel, which colours categories by rank — the four largest blue,
-orange, green, amber, the rest grey — whatever their theme key. A category's
+orange, green, amber, the rest grey — whatever their theme key. The card ranks
+by the local estimate, so its colours mark rank, not a category's `/context`
+colour. A category's
 own `color` key draws the terminal's palette instead. The 60% / 85% thresholds in `tone()` are quoted in `README.md`; change
 both.
 
