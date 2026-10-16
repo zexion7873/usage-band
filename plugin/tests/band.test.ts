@@ -1,5 +1,6 @@
 import type { On, SessionContextBreakdown, SessionMessage } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
+import type { Engine, Mounted } from 'claude-code/testing'
 
 import { bar } from '../hooks/bar'
 
@@ -38,6 +39,8 @@ const engine = (on: On) => {
       rateLimits: [],
     },
   }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
 }
 
@@ -182,6 +185,71 @@ test('rate-limit figures read whole percents, and minutes alone under an hour', 
   const texts = (await terminal.findAll({ type: 'Text' })).map(t => t.text).join('|')
   expect(texts).toContain('23%')
   expect(texts).toContain('(45m)')
+  await terminal.unmount()
+})
+
+const measureFiveHour = ($: Engine, percentUsed: number, resetsAt: string) =>
+  $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed, resetsAt },
+      { kind: 'seven_day', percentUsed: 89, resetsAt: '2026-10-08T21:00:00Z' },
+    ],
+    changed: ['context', 'rateLimits'],
+  })
+
+const submit = ($: Engine, text: string, kind: 'composer' | 'sdk' | 'task-notification') =>
+  $.prompt.submit({ text, wait: false, origin: { kind } })
+
+const terminalLine = async (ui: Mounted<'terminal', 'AbovePrompt'>) =>
+  (await ui.findAll({ type: 'Text' })).filter(t => t.props.wrap !== undefined).map(t => t.text)
+
+test('a rate-limit window shows how far it moved since your last message, until a reading replaces it', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const line = (fiveHour: string) => [`ctx 42% (84k/200k) · 5h ${fiveHour} (3h20m) · wk 89% (2d21h) · cache 83%`]
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  await submit($, 'go', 'composer')
+  // A measure fires as the window crosses a whole point mid-turn, and again as the turn ends.
+  await measureFiveHour($, 13, '2026-10-06T03:20:00Z')
+  await measureFiveHour($, 13, '2026-10-06T03:20:00Z')
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(line('13% +1%'))
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const [, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
+  expect(fiveHour?.props.alt).toMatch(/^5h: 13% used · since your last message: \+1% · time passed: 33% · /)
+  expect(wk?.props.alt).not.toContain('since your last message')
+  expect(await desktop.find({ type: 'Text', text: /^since your last message: \+1%$/ })).toBeDefined()
+  // In the card only: two more figures on the row push the cost onto a second line in a default-width pane.
+  expect(await desktop.find({ type: 'Text', text: /^\+1%$/ })).toBeUndefined()
+  await desktop.unmount()
+
+  // A background agent's report starts a main turn of its own, through a submission that is not yours.
+  await submit($, '<agent-message from="a1">', 'task-notification')
+  await $.turn.start({ text: '<agent-message from="a1">', turnId: 'w1' })
+  // A reading with a decimal keeps it.
+  await measureFiveHour($, 13.4, '2026-10-06T03:20:00Z')
+  expect(await terminalLine(terminal)).toEqual(line('13% +1.4%'))
+
+  await submit($, 'again', 'sdk')
+  expect(await terminalLine(terminal)).toEqual(line('13% +1.4%'))
+  await measureFiveHour($, 13.4, '2026-10-06T03:20:00Z')
+  expect(await terminalLine(terminal)).toEqual(line('13%'))
+  await terminal.unmount()
+})
+
+test('a window that reset since your last message shows no change from the old one', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await measureFiveHour($, 0.5, '2026-10-06T03:20:00Z')
+  await submit($, 'go', 'composer')
+  await clock.advance(3 * 3_600_000 + 30 * 60_000)
+  await measureFiveHour($, 2, '2026-10-06T08:20:00Z')
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx 42% (84k/200k) · 5h 2% (4h50m) · wk 89% (2d17h) · cache 83%'])
   await terminal.unmount()
 })
 

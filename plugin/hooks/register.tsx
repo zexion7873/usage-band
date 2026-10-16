@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register, SessionContextBreakdown, SessionContextUsage, SessionCost, SessionRateLimit } from 'claude-code'
 
-import type { UsageBand, UsageBandDetail } from '../types'
+import type { UsageBand, UsageBandDetail, UsageBandLimit } from '../types'
 import { BAR, bar, clampPct, COMPACT_TICK, PACE_TICK, tone } from './bar'
 
 const usage = atom({ plugin: 'usage-band', key: 'usage' } as const, null)
@@ -82,9 +82,20 @@ const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number
   }
 }
 
+// Typed at a terminal, through Remote Control, or by the desktop app (an SDK host). An unknown kind leaves the step unshown, never wrong.
+const YOUR_MESSAGE = new Set(['composer', 'bridge', 'sdk'])
+
+// From the reading at your last message: a measure also fires each time a window crosses a whole point mid-turn.
+// A window that reset since then has no step from it to show.
+const withDeltas = (limits: SessionRateLimit[], before: UsageBandLimit[] | undefined): UsageBandLimit[] =>
+  limits.map(limit => {
+    const base = before?.find(b => b.kind === limit.kind && b.resetsAt === limit.resetsAt)?.base
+    return base === undefined ? limit : { ...limit, base, delta: limit.percentUsed - base }
+  })
+
 const snapshot = (
   context: SessionContextUsage,
-  rateLimits: SessionRateLimit[],
+  rateLimits: UsageBandLimit[],
   cost: SessionCost | undefined,
   detail: UsageBandDetail | undefined,
 ): UsageBand => ({
@@ -112,13 +123,20 @@ export const register: Register = on => {
   })
 
   on('session.measure', async ($, e, next) => {
-    await update($, usage, prev => snapshot(e.context, e.rateLimits, e.cost, prev?.detail))
+    await update($, usage, prev => snapshot(e.context, withDeltas(e.rateLimits, prev?.rateLimits), e.cost, prev?.detail))
     // Second write so a failed breakdown leaves the headline figures current.
     if (e.changed.includes('context')) {
       const { context } = await $.session.usage({ breakdown: 'summary' })
       const detail = detailOf(context.breakdown, e.context.window)
       await update($, usage, prev => prev && { ...prev, detail })
     }
+    return next(e)
+  })
+
+  // Not at turn.start: a background agent's report starts a main turn of its own, which would reset the step to 0.
+  on('prompt.submit', async ($, e, next) => {
+    if (YOUR_MESSAGE.has(e.origin.kind))
+      await update($, usage, prev => prev && { ...prev, rateLimits: prev.rateLimits.map(l => ({ ...l, base: l.percentUsed })) })
     return next(e)
   })
 
@@ -162,6 +180,7 @@ export const register: Register = on => {
         title: `ctx: ${ctxPercent}% used`,
         percent: ctxPercent,
         detail: ctxDetail,
+        moved: '',
         extra: detail?.compactPercent === undefined ? [] : [line(`auto-compact: at ${detail.compactPercent}%`)],
         // The summary breakdown is a local estimate; /context counts with the token-count API.
         parts: (detail?.contextParts ?? []).map((p, rank) => ({
@@ -181,6 +200,7 @@ export const register: Register = on => {
             title: `${label}: reset`,
             percent: 0,
             detail: 'reset',
+            moved: '',
             extra: [line(`reset at ${clockTime(new Date(limit.resetsAt))}`), line('new number after your next message')],
             parts: [],
             marks: [],
@@ -191,6 +211,9 @@ export const register: Register = on => {
         const ahead = forecast(limit, now)
         // The engine reports one decimal; the CLI's own notice floors it, and floor never shows 100% early.
         const used = Math.floor(limit.percentUsed)
+        // Readings come whole (seen on 2.1.300) or with a decimal; a whole step reads +1%, not +1.0%.
+        const step = Math.round((limit.delta ?? 0) * 10) / 10
+        const moved = step > 0 ? `+${step}%` : ''
         return {
           key: limit.kind,
           label,
@@ -198,7 +221,10 @@ export const register: Register = on => {
           title: `${label}: ${used}% used`,
           percent: used,
           detail: reset,
+          // The desktop shows it in the card only: two more figures on the row push the cost onto a second line.
+          moved,
           extra: [
+            ...(moved === '' ? [] : [line(`since your last message: ${moved}`)]),
             ...(paceAt === undefined ? [] : [line(`time passed: ${paceAt}%`)]),
             ...(ahead === undefined ? [] : [ahead]),
             ...(limit.resetsAt === undefined ? [] : [line(`reset: ${resetClock(limit.resetsAt, now)}`)]),
@@ -222,6 +248,7 @@ export const register: Register = on => {
               <Text key={m.key}>
                 <Text dimColor>{i > 0 ? ' · ' : ''}{m.label} </Text>
                 <Text color={TEXT_COLOR[tone(m.percent)]} dimColor={tone(m.percent) === 'calm'}>{m.percent}%</Text>
+                {m.moved && <Text> {m.moved}</Text>}
                 <Text dimColor>{m.detail && ` (${m.detail})`}</Text>
               </Text>
             ))}
