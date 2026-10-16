@@ -59,14 +59,22 @@ reds one is a change in behaviour, not a test to update.
   band vanishes until the next response. Not `compact`: `usage()` there still
   holds the fill the compaction removed. The clock is not re-armed — only a
   hot reload cancels it.
-- **Move `ctx` inside a turn.** `session.measure` fires only when a turn ends,
-  so `turn.step` writes each main-thread response's input tokens, and
+- **Move `ctx` inside a turn.** `session.measure` fires when a turn ends, not
+  per response, so `turn.step` writes each main-thread response's input tokens, and
   `session.compact` writes the result's `tokensAfter` — after a compaction
   `$.session.usage()` still reports the last response's fill. Both skip
   subagents; compaction also skips `precompute`.
 - **Keep the terminal band to one line.** It is one `Text` with
   `wrap="truncate-end"`; a row of sibling Texts wraps each meter in a column of
   its own once the line outgrows the terminal.
+- **Count a window's `+N%` from your last message.** A `prompt.submit` whose
+  `origin.kind` is `composer`, `bridge` or `sdk` stores each window's reading
+  as its `base`, and each `session.measure` shows the rise over it. Not from the
+  last measure: one also fires whenever a window crosses a whole point, and
+  readings come whole, so the turn's final step was always 0. Not from
+  `turn.start`: a background agent's report starts a main turn of its own (its
+  submission's origin is `peer`). On the desktop the step is in the card only;
+  inline, two more figures push the cost onto a second row.
 
 Two more have no test yet:
 

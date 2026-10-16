@@ -1,4 +1,4 @@
-export type UsageBandLimit = { kind: string; percentUsed: number; resetsAt?: string }
+export type UsageBandLimit = { kind: string; percentUsed: number; resetsAt?: string; base?: number; delta?: number }
 
 export type UsageBandPart = { name: string; tokens: number }
 

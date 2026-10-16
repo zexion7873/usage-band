@@ -57,7 +57,7 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 |   | Item | Meaning |
 |:-:|------|---------|
 | 🧠 | **`ctx`** | Context window fill, `tokens/window` beside it. A red tick marks where auto-compact triggers, white where the fill has passed it. |
-| ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. |
+| ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. Once a window has moved since your last message, `+N%` says how far — in the terminal line, and in the window's card on the desktop. The windows are the account's, so every session on it counts toward that step, not only this one. |
 | 💳 | **`spend`** | The spend limit, when the account has one. |
 | ♻️ | **`cache N%`** | Cache reads as a share of all input tokens in the last response. |
 | 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription this is not what you are billed — your plan counts against the `5h` / `wk` limits. |
@@ -74,7 +74,8 @@ screen reader also reads:
   them exactly. Each square marks a rank the way `/context` colours its own —
   blue, orange, green, amber, then grey — so where the two rankings differ, a
   category's colour differs too.
-- **A rate-limit window**: how much of the window has elapsed, where it ends up
+- **A rate-limit window**: how far it moved since your last message, when it
+  moved, how much of the window has elapsed, where it ends up
   if the rest of it burns at the rate so far — in amber when that runs it out
   before the reset — and the local time it resets.
 
