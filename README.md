@@ -120,7 +120,7 @@ whatever other plugins drew beneath it.
 
 ```mermaid
 flowchart LR
-    Start["session.start<br/>usage + breakdown"]
+    Start["session.start, /clear, /resume, /branch<br/>usage + breakdown"]
     Measure["session.measure<br/>after every turn"]
     Step["turn.step<br/>ctx after every response"]
     Compact["session.compact<br/>size it leaves"]
