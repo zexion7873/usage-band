@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register, SessionContextBreakdown, SessionContextUsage, SessionCost, SessionRateLimit } from 'claude-code'
+import type { EngineInterface, Register, SessionContextBreakdown, SessionContextUsage, SessionCost, SessionRateLimit } from 'claude-code'
 
 import type { UsageBand, UsageBandDetail, UsageBandLimit } from '../types'
 import { BAR, bar, clampPct, COMPACT_TICK, PACE_TICK, tone } from './bar'
@@ -113,12 +113,23 @@ const withContext = (prev: UsageBand, tokens: number): UsageBand => ({
   contextPercent: Math.round(clampPct((100 * tokens) / prev.contextWindow)),
 })
 
+const seed = async ($: EngineInterface) => {
+  const { context, rateLimits, cost } = await $.session.usage({ breakdown: 'summary' })
+  await update($, usage, () => snapshot(context, rateLimits, cost, detailOf(context.breakdown, context.window)))
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    const { context, rateLimits, cost } = await $.session.usage({ breakdown: 'summary' })
-    await update($, usage, () => snapshot(context, rateLimits, cost, detailOf(context.breakdown, context.window)))
+    await seed($)
     // Reset countdowns and pace ticks read the clock while drawing; without this an idle session freezes them.
     $.clock.every(60_000, () => $.ui.invalidate('ui.render'))
+    return next(e)
+  })
+
+  // No session.start follows these, and /clear empties the session's state: without this the band vanishes until the next response.
+  // Not compact: usage() there still holds the fill the compaction removed (session.compact writes it).
+  on('classic.SessionStart', { source: ['clear', 'resume', 'fork'] }, async ($, e, next) => {
+    await seed($)
     return next(e)
   })
 

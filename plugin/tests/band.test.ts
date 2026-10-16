@@ -39,6 +39,7 @@ const engine = (on: On) => {
       rateLimits: [],
     },
   }))
+  on('classic.SessionStart', () => ({}))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
@@ -261,6 +262,8 @@ test('band shows the context a compaction leaves, not the one it removed', async
   await $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], changed: ['context'] })
 
   await $.session.compact({ trigger: 'manual', messages: [summary] })
+  // usage() still holds the removed fill here; re-reading it on this source would undo the compaction.
+  await $.classic.SessionStart({ source: 'compact' })
 
   const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /^7%$/ })).toBeDefined()
@@ -291,6 +294,19 @@ test('band follows the context through a turn, step by step', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /^160k\/200k$/ })).toBeDefined()
   await ui.unmount()
 })
+
+for (const source of ['clear', 'resume', 'fork'] as const) {
+  // The session's state starts empty after these, and no session.start follows.
+  test(`band redraws at once after a ${source}, not at the next response`, async ($, on) => {
+    mock.clock(on, { now: NOW })
+    engine(on)
+    await $.classic.SessionStart({ source })
+
+    const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+    expect(await ui.find({ type: 'Text', text: /^42%$/ })).toBeDefined()
+    await ui.unmount()
+  })
+}
 
 test('band stays out of the way until the first measurement', async ($, on) => {
   mock.clock(on, { now: NOW })

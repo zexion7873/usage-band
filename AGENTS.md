@@ -53,6 +53,12 @@ reds one is a change in behaviour, not a test to update.
 - **Keep the clock running.** `session.start` arms `$.clock.every(60_000, …)` to
   invalidate `ui.render`. Without it an idle session freezes every reset
   countdown and pace tick.
+- **Come back after `/clear`, `/resume` and `/branch`.** No `session.start`
+  follows them and `/clear` empties the session's state, so `classic.SessionStart`
+  re-reads `$.session.usage()` for those three sources; without it the whole
+  band vanishes until the next response. Not `compact`: `usage()` there still
+  holds the fill the compaction removed. The clock is not re-armed — only a
+  hot reload cancels it.
 - **Move `ctx` inside a turn.** `session.measure` fires when a turn ends, not
   per response, so `turn.step` writes each main-thread response's input tokens, and
   `session.compact` writes the result's `tokensAfter` — after a compaction
