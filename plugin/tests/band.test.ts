@@ -81,13 +81,13 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect((await desktop.find({ type: 'Text', text: /^at this speed: 36% at reset$/ }))?.props.color).toBeUndefined()
   const [ctx, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(wk?.props.isInteractive).toBeUndefined()
-  expect(ctx?.props.source).toContain('<rect x="63" width="2" height="12" fill="#c04742"/>')
-  expect(fiveHour?.props.source).toContain('<rect x="25" width="2" height="12" fill="#9c9c9c"/>')
+  expect(ctx?.props.source).toContain('<rect x="47" width="2" height="12" fill="#c04742"/>')
+  expect(fiveHour?.props.source).toContain('<rect x="19" width="2" height="12" fill="#9c9c9c"/>')
   expect(await desktop.find({ type: 'Text', text: /^cache 83%$/ })).toBeDefined()
   expect(wk?.props.source).toContain('#c04742')
   // wk's 59% pace tick sits inside its 89% fill: white across the fill, grey stubs above and below.
   expect(wk?.props.source).toContain(
-    '<rect x="46" width="2" height="2" fill="#9c9c9c"/><rect x="46" y="2" width="2" height="8" fill="#fff"/><rect x="46" y="10" width="2" height="2" fill="#9c9c9c"/>',
+    '<rect x="34" width="2" height="2" fill="#9c9c9c"/><rect x="34" y="2" width="2" height="8" fill="#fff"/><rect x="34" y="10" width="2" height="2" fill="#9c9c9c"/>',
   )
   expect((await desktop.find({ type: 'Text', text: /^89%$/ }))?.props.color).toBe('error')
   expect((await desktop.find({ type: 'Text', text: /^42%$/ }))?.props.dimColor).toBe(true)
@@ -99,8 +99,8 @@ test('band shows context fill and each rate-limit window with time to reset', as
 })
 
 test('a tick level with the fill, or on an empty bar, keeps its own colour', async () => {
-  // 67% and 68% both land on pixel 54: the fill has reached the tick, not passed it.
-  expect(bar(67, [{ percent: 68, color: '#9c9c9c' }])).toContain('<rect x="53" width="2" height="12" fill="#9c9c9c"/>')
+  // 66% and 67% both land on pixel 40: the fill has reached the tick, not passed it.
+  expect(bar(66, [{ percent: 67, color: '#9c9c9c' }])).toContain('<rect x="39" width="2" height="12" fill="#9c9c9c"/>')
   expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).toContain('<rect x="0" width="2" height="12" fill="#9c9c9c"/>')
   expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).not.toContain('#fff')
 })
