@@ -21,19 +21,19 @@ const meters = [
 const PAD = 16
 const ROW_Y = 26
 const parts: string[] = []
-const text = (x: number, s: string, fill = DIM) =>
-  `<text x="${x}" y="${ROW_Y + FONT / 2 - 2}" fill="${fill}">${s}</text>`
+const text = (x: number, s: string, fill = DIM, anchor = 'start') =>
+  `<text x="${x}" y="${ROW_Y + FONT / 2 - 2}" fill="${fill}" text-anchor="${anchor}">${s}</text>`
 
+// CHAR guesses a glyph's width, and a guess within a meter ran figures together; the label ends at its bar and the
+// figures share one text, so only each meter's total is guessed, inside the three-cell gap between meters.
 let x = PAD
 for (const m of meters) {
-  parts.push(text(x, m.label))
-  x += m.label.length * CHAR + GAP
-  parts.push(bar(m.percent, [...m.marks]).replace('<svg ', `<svg x="${x}" y="${ROW_Y - BAR.tick / 2}" `))
-  x += BAR.width + GAP
-  parts.push(text(x, `${m.percent}%`, 'tone' in m ? TEXT_COLOR[m.tone] : DIM))
-  x += `${m.percent}%`.length * CHAR + GAP
-  parts.push(text(x, m.detail))
-  x += m.detail.length * CHAR + 3 * CHAR
+  const barX = x + m.label.length * CHAR + GAP
+  parts.push(text(barX - GAP, m.label, DIM, 'end'))
+  parts.push(bar(m.percent, [...m.marks]).replace('<svg ', `<svg x="${barX}" y="${ROW_Y - BAR.tick / 2}" `))
+  const figures = `<tspan fill="${'tone' in m ? TEXT_COLOR[m.tone] : DIM}">${m.percent}%</tspan> <tspan fill="${DIM}">${m.detail}</tspan>`
+  parts.push(text(barX + BAR.width + GAP, figures))
+  x = barX + BAR.width + GAP + `${m.percent}% ${m.detail}`.length * CHAR + 3 * CHAR
 }
 parts.push(text(x, 'cache 83%'))
 const width = x + 'cache 83%'.length * CHAR + PAD
