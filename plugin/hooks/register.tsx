@@ -53,8 +53,8 @@ const forecast = (limit: SessionRateLimit, now: number) => {
   if (left <= 0 || elapsed < (span * MIN_FORECAST_PCT) / 100) return undefined
   const atReset = (limit.percentUsed * span) / elapsed
   return atReset < 100
-    ? line(`at this speed: ${Math.round(atReset)}% at reset`)
-    : line(`at this speed: all used in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
+    ? line(`at reset: ~${Math.round(atReset)}%`)
+    : line(`runs out: in ~${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
@@ -197,7 +197,7 @@ export const register: Register = on => {
         figure: `${ctxPercent}%`,
         detail: ctxDetail,
         moved: '',
-        extra: detail?.compactPercent === undefined ? [] : [line(`auto-compact: at ${detail.compactPercent}%`)],
+        extra: detail?.compactPercent === undefined ? [] : [line(`auto-compact: ${detail.compactPercent}%`)],
         // The summary breakdown is a local estimate; /context counts with the token-count API.
         parts: (detail?.contextParts ?? []).map((p, rank) => ({
           name: p.name,
@@ -219,7 +219,7 @@ export const register: Register = on => {
             figure: '—',
             detail: 'reset',
             moved: '',
-            extra: [line(`reset at ${clockTime(new Date(limit.resetsAt))}`), line('new number after your next message')],
+            extra: [line(`reset: ${clockTime(new Date(limit.resetsAt))}`), line('new number: after next message')],
             parts: [],
             marks: [],
           }
@@ -235,7 +235,7 @@ export const register: Register = on => {
         return {
           key: limit.kind,
           label,
-          // Plain words: many readers of the card do not have English as a first language.
+          // Plain words, every card line as `name: value` (`~` for an estimate): many readers do not have English first.
           title: `${label}: ${used}% used`,
           percent: used,
           figure: `${used}%`,
@@ -246,7 +246,7 @@ export const register: Register = on => {
             ...(limit.resetsAt === undefined ? [] : [line(`reset: ${resetClock(limit.resetsAt, now)}`)]),
             // Absent early in a window; the step changes with every message, so it goes last.
             ...(ahead === undefined ? [] : [transient(ahead)]),
-            ...(moved === '' ? [] : [transient(line(`since your last message: ${moved}`))]),
+            ...(moved === '' ? [] : [transient(line(`since last message: ${moved}`))]),
           ],
           parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
@@ -331,8 +331,8 @@ export const register: Register = on => {
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>
-                  {item(line('at API prices'))}
-                  {item(line('a plan uses 5h and wk'))}
+                  {item(line('based on: API prices'))}
+                  {item(line('on a plan: not billed'))}
                 </Box>
               )}
             </Box>
