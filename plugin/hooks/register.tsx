@@ -8,6 +8,8 @@ const usage = atom({ plugin: 'usage-band', key: 'usage' } as const, null)
 
 
 const LABELS: Record<string, string> = { five_hour: '5h', seven_day: 'wk', spend_limit: 'spend' }
+// Desktop row shares, in proportion to each block's widest likely content (`100%`, `199k/200k`, `+12%`, `6d23h`); they sum to 100.
+const ROW_SHARE: Record<string, string> = { ctx: '28%', five_hour: '30%', seven_day: '30%', cache: '12%' }
 const WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day: 7 * 86_400_000 }
 
 const TEXT_COLOR = { calm: undefined, hot: 'warning', over: 'error' } as const
@@ -236,7 +238,6 @@ export const register: Register = on => {
           percent: used,
           figure: `${used}%`,
           detail: reset,
-          // The desktop shows it in the card only: two more figures on the row push the cost onto a second line.
           moved,
           extra: [
             ...(moved === '' ? [] : [line(`since your last message: ${moved}`)]),
@@ -280,9 +281,10 @@ export const register: Register = on => {
         {below}
         {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps.
             One wrap row: a nested one took a whole line once it overflowed, pushing the cost onto a line alone. */}
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} rowGap={1}>
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={0} rowGap={1}>
           {meters.map(m => (
-            <Box key={m.key} flexDirection="row" alignItems="center" gap={1}>
+            // A minimum, not a width: content past its share widens the block and wraps the row rather than overlapping.
+            <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={ROW_SHARE[m.key]}>
               <Text dimColor>{m.label}</Text>
               <Svg
                 source={bar(m.percent, m.marks)}
@@ -295,6 +297,7 @@ export const register: Register = on => {
               ) : (
                 <Text color={TEXT_COLOR[tone(m.percent)]}>{m.figure}</Text>
               )}
+              {m.moved && <Text dimColor>{m.moved}</Text>}
               {m.detail && <Text dimColor>{m.detail}</Text>}
               {m.extra.length + m.parts.length > 0 && (
                 // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
@@ -317,10 +320,17 @@ export const register: Register = on => {
               )}
             </Box>
           ))}
-          {cache && <Text dimColor>{cache}</Text>}
-          {cost && (
-            <Box flexDirection="row" flexGrow={1} justifyContent="flex-end">
-              <Text dimColor>{cost}</Text>
+          {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
+          {(cache || cost) && (
+            <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={ROW_SHARE.cache}>
+              <Text dimColor>{cache || cost}</Text>
+              {cache && cost && (
+                <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
+                  <Text>{`cost: ${cost}`}</Text>
+                  <Text dimColor>at API prices</Text>
+                  <Text dimColor>on a plan, 5h and wk are what count</Text>
+                </Box>
+              )}
             </Box>
           )}
         </Box>

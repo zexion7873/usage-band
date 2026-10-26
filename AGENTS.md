@@ -73,8 +73,12 @@ reds one is a change in behaviour, not a test to update.
   last measure: one also fires whenever a window crosses a whole point, and
   readings come whole, so the turn's final step was always 0. Not from
   `turn.start`: a background agent's report starts a main turn of its own (its
-  submission's origin is `peer`). On the desktop the step is in the card only;
-  inline, two more figures push the cost onto a second row.
+  submission's origin is `peer`). The desktop shows the step on the row as well
+  as in the card. That row fits one line in a default-width pane only with
+  `BAR.width` at 60, half-cell gaps inside each meter, and the cost moved into
+  cache's card: the cost grows without bound, so on the row it wraps sooner or
+  later. Each block's `minWidth` share (`ROW_SHARE`) is proportional to its
+  widest likely content; change what a block can show and its share follows.
 
 Two more have no test yet:
 
