@@ -40,7 +40,9 @@ const resetClock = (resetsAt: string, now: number) => {
   return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
 }
 
-const line = (text: string, isWarning = false) => ({ text, isWarning })
+const line = (text: string, isWarning = false) => ({ text, isWarning, transient: false })
+// A card line that comes and goes; it opens with a grey square and sits below the lines that are always there.
+const transient = (l: ReturnType<typeof line>) => ({ ...l, transient: true })
 
 // Where the window ends up if the rest of it burns at the rate so far; running out before the reset is a warning.
 const forecast = (limit: SessionRateLimit, now: number) => {
@@ -240,10 +242,11 @@ export const register: Register = on => {
           detail: reset,
           moved,
           extra: [
-            ...(moved === '' ? [] : [line(`since your last message: ${moved}`)]),
             ...(paceAt === undefined ? [] : [line(`time passed: ${paceAt}%`)]),
-            ...(ahead === undefined ? [] : [ahead]),
             ...(limit.resetsAt === undefined ? [] : [line(`reset: ${resetClock(limit.resetsAt, now)}`)]),
+            // Absent early in a window; the step changes with every message, so it goes last.
+            ...(ahead === undefined ? [] : [transient(ahead)]),
+            ...(moved === '' ? [] : [transient(line(`since your last message: ${moved}`))]),
           ],
           parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
@@ -276,17 +279,13 @@ export const register: Register = on => {
     }
 
     const { Box, Text, Svg } = $.ui.resolve(e)
-    // A card line under its title: the first reads as a subtitle in plain text, the rest open with a grey square;
-    // colour stays for what it means (ctx's ranked categories).
-    const item = (l: { text: string; isWarning: boolean }, index: number) => {
-      const text = l.isWarning ? <Text color="warning">{l.text}</Text> : <Text dimColor>{l.text}</Text>
-      return (
-        <Text key={l.text}>
-          {index > 0 && <Text color={CONTEXT_SWATCH_REST}>■ </Text>}
-          {text}
-        </Text>
-      )
-    }
+    // A card line under its title; grey, so a coloured square still always means a rank (ctx's categories).
+    const item = (l: ReturnType<typeof line>) => (
+      <Text key={l.text}>
+        {l.transient && <Text color={CONTEXT_SWATCH_REST}>■ </Text>}
+        {l.isWarning ? <Text color="warning">{l.text}</Text> : <Text dimColor>{l.text}</Text>}
+      </Text>
+    )
     return (
       <Box flexDirection="column">
         {below}
@@ -332,7 +331,8 @@ export const register: Register = on => {
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>
-                  {[line('at API prices'), line('a plan uses 5h and wk')].map(item)}
+                  {item(line('at API prices'))}
+                  {item(line('a plan uses 5h and wk'))}
                 </Box>
               )}
             </Box>

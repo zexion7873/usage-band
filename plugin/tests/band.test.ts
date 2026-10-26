@@ -73,9 +73,9 @@ test('band shows context fill and each rate-limit window with time to reset', as
   const alts = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
   expect(alts[0]).toBe('ctx: 42% used · auto-compact: at 80% · Messages about 50k · System tools about 20k')
   // The reset clock is the machine's local time, so only its shape is pinned.
-  expect(alts[1]).toMatch(/^5h: 12% used · time passed: 33% · at this speed: 36% at reset · reset: \d\d:\d\d$/)
+  expect(alts[1]).toMatch(/^5h: 12% used · time passed: 33% · reset: \d\d:\d\d · at this speed: 36% at reset$/)
   expect(alts[2]).toMatch(
-    /^wk: 89% used · time passed: 59% · at this speed: all used in 12h14m · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/,
+    /^wk: 89% used · time passed: 59% · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d · at this speed: all used in 12h14m$/,
   )
   expect((await desktop.find({ type: 'Text', text: /^at this speed: all used in 12h14m$/ }))?.props.color).toBe('warning')
   expect((await desktop.find({ type: 'Text', text: /^at this speed: 36% at reset$/ }))?.props.color).toBeUndefined()
@@ -99,10 +99,11 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(await desktop.find({ type: 'Text', text: /^cost: \$1\.23$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^at API prices$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^a plan uses 5h and wk$/ })).toBeDefined()
-  // Under each title the first line is plain text; the rest open with a square, grey unless it marks ctx's ranks.
+  // Lines that are always there read as plain text; a grey square marks one that comes and goes (the forecast here),
+  // so the cost card has none. ctx's ranked categories keep their colours.
   const squares = (await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)
   const grey = '#97958d'
-  expect(squares).toEqual(['#3987e5', '#d95926', grey, grey, grey, grey, grey])
+  expect(squares).toEqual(['#3987e5', '#d95926', grey, grey])
   await desktop.unmount()
 })
 
@@ -233,7 +234,7 @@ test('a rate-limit window shows how far it moved since your last message, until 
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
-  expect(fiveHour?.props.alt).toMatch(/^5h: 13% used · since your last message: \+1% · time passed: 33% · /)
+  expect(fiveHour?.props.alt).toMatch(/^5h: 13% used · time passed: 33% · reset: \d\d:\d\d · at this speed: 39% at reset · since your last message: \+1%$/)
   expect(wk?.props.alt).not.toContain('since your last message')
   expect(await desktop.find({ type: 'Text', text: /^since your last message: \+1%$/ })).toBeDefined()
   expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)).toEqual(['+1%'])
