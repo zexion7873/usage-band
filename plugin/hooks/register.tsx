@@ -276,13 +276,17 @@ export const register: Register = on => {
     }
 
     const { Box, Text, Svg } = $.ui.resolve(e)
-    // A card line under its title, in grey: colour stays for what it means (ctx's ranked categories).
-    const item = (l: { text: string; isWarning: boolean }) => (
-      <Text key={l.text}>
-        <Text color={CONTEXT_SWATCH_REST}>■ </Text>
-        {l.isWarning ? <Text color="warning">{l.text}</Text> : <Text dimColor>{l.text}</Text>}
-      </Text>
-    )
+    // A card line under its title: the first reads as a subtitle in plain text, the rest open with a grey square;
+    // colour stays for what it means (ctx's ranked categories).
+    const item = (l: { text: string; isWarning: boolean }, index: number) => {
+      const text = l.isWarning ? <Text color="warning">{l.text}</Text> : <Text dimColor>{l.text}</Text>
+      return (
+        <Text key={l.text}>
+          {index > 0 && <Text color={CONTEXT_SWATCH_REST}>■ </Text>}
+          {text}
+        </Text>
+      )
+    }
     return (
       <Box flexDirection="column">
         {below}
@@ -328,8 +332,7 @@ export const register: Register = on => {
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>
-                  {item(line('at API prices'))}
-                  {item(line('a plan uses 5h and wk'))}
+                  {[line('at API prices'), line('a plan uses 5h and wk')].map(item)}
                 </Box>
               )}
             </Box>

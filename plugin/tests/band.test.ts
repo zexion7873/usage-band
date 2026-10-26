@@ -99,10 +99,10 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(await desktop.find({ type: 'Text', text: /^cost: \$1\.23$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^at API prices$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^a plan uses 5h and wk$/ })).toBeDefined()
-  // Every card line under a title opens with a square: grey unless the colour means something (ctx's ranked categories).
+  // Under each title the first line is plain text; the rest open with a square, grey unless it marks ctx's ranks.
   const squares = (await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)
   const grey = '#97958d'
-  expect(squares).toEqual([grey, '#3987e5', '#d95926', grey, grey, grey, grey, grey, grey, grey, grey])
+  expect(squares).toEqual(['#3987e5', '#d95926', grey, grey, grey, grey, grey])
   await desktop.unmount()
 })
 
@@ -399,9 +399,9 @@ test('desktop meter with detail reveals it in a hover card; one without draws no
   )
   expect(await desktop.find({ type: 'Text', text: /^Messages ~6k$/ })).toBeDefined()
   // Hex values as sampled from the desktop /context panel, which colours the four largest and greys the rest.
-  // The auto-compact line above them takes the grey square every card's plain lines take.
+  // The auto-compact line above them is the card's first line, so it reads as plain text with no square.
   const swatches = await desktop.findAll({ type: 'Text', text: /^■ $/ })
-  expect(swatches.map(s => s.props.color)).toEqual(['#97958d', '#3987e5', '#d95926', '#189e71', '#c98502', '#97958d'])
+  expect(swatches.map(s => s.props.color)).toEqual(['#3987e5', '#d95926', '#189e71', '#c98502', '#97958d'])
   await desktop.unmount()
 })
 
