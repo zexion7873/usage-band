@@ -232,7 +232,6 @@ export const register: Register = on => {
           title: `${label}: ${used}% used`,
           percent: used,
           detail: reset,
-          // The desktop shows it in the card only: two more figures on the row push the cost onto a second line.
           moved,
           extra: [
             ...(moved === '' ? [] : [line(`since your last message: ${moved}`)]),
@@ -291,6 +290,7 @@ export const register: Register = on => {
               ) : (
                 <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
               )}
+              {m.moved && <Text dimColor>{m.moved}</Text>}
               {m.detail && <Text dimColor>{m.detail}</Text>}
               {m.extra.length + m.parts.length > 0 && (
                 // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
@@ -313,10 +313,17 @@ export const register: Register = on => {
               )}
             </Box>
           ))}
-          {cache && <Text dimColor>{cache}</Text>}
-          {cost && (
-            <Box flexDirection="row" flexGrow={1} justifyContent="flex-end">
-              <Text dimColor>{cost}</Text>
+          {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
+          {(cache || cost) && (
+            <Box key="cache" flexDirection="row" alignItems="center">
+              <Text dimColor>{cache || cost}</Text>
+              {cache && cost && (
+                <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
+                  <Text>{`cost: ${cost}`}</Text>
+                  <Text dimColor>at API prices</Text>
+                  <Text dimColor>on a plan, 5h and wk are what count</Text>
+                </Box>
+              )}
             </Box>
           )}
         </Box>

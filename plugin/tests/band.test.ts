@@ -81,26 +81,29 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect((await desktop.find({ type: 'Text', text: /^at this speed: 36% at reset$/ }))?.props.color).toBeUndefined()
   const [ctx, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(wk?.props.isInteractive).toBeUndefined()
-  expect(ctx?.props.source).toContain('<rect x="47" width="2" height="12" fill="#c04742"/>')
-  expect(fiveHour?.props.source).toContain('<rect x="19" width="2" height="12" fill="#9c9c9c"/>')
+  expect(ctx?.props.source).toContain('<rect x="39" width="2" height="12" fill="#c04742"/>')
+  expect(fiveHour?.props.source).toContain('<rect x="16" width="2" height="12" fill="#9c9c9c"/>')
   expect(await desktop.find({ type: 'Text', text: /^cache 83%$/ })).toBeDefined()
   expect(wk?.props.source).toContain('#c04742')
   // wk's 59% pace tick sits inside its 89% fill: white across the fill, grey stubs above and below.
   expect(wk?.props.source).toContain(
-    '<rect x="34" width="2" height="2" fill="#9c9c9c"/><rect x="34" y="2" width="2" height="8" fill="#fff"/><rect x="34" y="10" width="2" height="2" fill="#9c9c9c"/>',
+    '<rect x="29" width="2" height="2" fill="#9c9c9c"/><rect x="29" y="2" width="2" height="8" fill="#fff"/><rect x="29" y="10" width="2" height="2" fill="#9c9c9c"/>',
   )
   expect((await desktop.find({ type: 'Text', text: /^89%$/ }))?.props.color).toBe('error')
   expect((await desktop.find({ type: 'Text', text: /^42%$/ }))?.props.dimColor).toBe(true)
   expect(await desktop.find({ type: 'Text', text: /^84k\/200k$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^2d21h$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^3h20m$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^\$1\.23$/ })).toBeDefined()
+  // The cost moved into cache's card: it grows without bound and pushed itself off the row.
+  expect(await desktop.find({ type: 'Text', text: /^\$1\.23$/ })).toBeUndefined()
+  expect(await desktop.find({ type: 'Text', text: /^cost: \$1\.23$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^at API prices$/ })).toBeDefined()
   await desktop.unmount()
 })
 
 test('a tick level with the fill, or on an empty bar, keeps its own colour', async () => {
-  // 66% and 67% both land on pixel 40: the fill has reached the tick, not passed it.
-  expect(bar(66, [{ percent: 67, color: '#9c9c9c' }])).toContain('<rect x="39" width="2" height="12" fill="#9c9c9c"/>')
+  // 65% and 66% both land on pixel 33: the fill has reached the tick, not passed it.
+  expect(bar(65, [{ percent: 66, color: '#9c9c9c' }])).toContain('<rect x="32" width="2" height="12" fill="#9c9c9c"/>')
   expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).toContain('<rect x="0" width="2" height="12" fill="#9c9c9c"/>')
   expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).not.toContain('#fff')
 })
@@ -223,8 +226,7 @@ test('a rate-limit window shows how far it moved since your last message, until 
   expect(fiveHour?.props.alt).toMatch(/^5h: 13% used · since your last message: \+1% · time passed: 33% · /)
   expect(wk?.props.alt).not.toContain('since your last message')
   expect(await desktop.find({ type: 'Text', text: /^since your last message: \+1%$/ })).toBeDefined()
-  // In the card only: two more figures on the row push the cost onto a second line in a default-width pane.
-  expect(await desktop.find({ type: 'Text', text: /^\+1%$/ })).toBeUndefined()
+  expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)).toEqual(['+1%'])
   await desktop.unmount()
 
   // A background agent's report starts a main turn of its own, through a submission that is not yours.
@@ -418,11 +420,28 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   })
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  // One wrap row for meters, cache and cost: a nested wrap row pushed the cost onto a line of its own.
+  // One wrap row for meters and cache: a nested wrap row took a whole line once it overflowed.
   const rows = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexWrap !== undefined)
   expect(rows.map(b => [b.props.flexWrap, b.props.rowGap])).toEqual([['wrap', 1]])
-  const cost = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexGrow === 1)
-  expect(cost.map(b => b.props.justifyContent)).toEqual(['flex-end'])
+  expect((await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexGrow !== undefined)).toEqual([])
+  await desktop.unmount()
+})
+
+test('desktop band keeps the cost on the row while there is no cache figure to hang its card on', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({ value: { startedAt: NOW, context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [] } }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [],
+    cost: { usd: 1.234 },
+    changed: ['context'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^\$1\.23$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^cost: / })).toBeUndefined()
   await desktop.unmount()
 })
 

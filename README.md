@@ -4,7 +4,7 @@
 
 [![CI: check](https://github.com/zexion7873/usage-band/actions/workflows/check.yml/badge.svg)](https://github.com/zexion7873/usage-band/actions/workflows/check.yml)
 
-<img src="docs/band.svg" width="686" title="Drawn by the mod's own bar() from sample figures — not a screenshot." alt="The usage band, drawn by the mod's own bar() from sample figures rather than a screenshot: ctx at 42% with 84k of 200k tokens and a red tick at the 80% auto-compact point, 5h at 67% in amber with 1h48m to reset and its pace tick at 64% drawn white where the fill covers it, wk at 89% in red with 2d21h to reset and its pace tick at 59% likewise white, then cache 83% and $1.23.">
+<img src="docs/band.svg" width="579" title="Drawn by the mod's own bar() from sample figures — not a screenshot." alt="The usage band, drawn by the mod's own bar() from sample figures rather than a screenshot: ctx at 42% with 84k of 200k tokens and a red tick at the 80% auto-compact point, 5h at 67% in amber with 1h48m to reset and its pace tick at 64% drawn white where the fill covers it, wk at 89% in red with 2d21h to reset and its pace tick at 59% likewise white, then cache 83%.">
 
 **Context fill and every rate-limit window, always on, right above the Claude
 Code prompt — in the desktop app's Code tab as well as the terminal.**
@@ -57,10 +57,10 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 |   | Item | Meaning |
 |:-:|------|---------|
 | 🧠 | **`ctx`** | Context window fill, `tokens/window` beside it. A red tick marks where auto-compact triggers, white where the fill has passed it. |
-| ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. Once a window has moved since your last message, `+N%` says how far — in the terminal line, and in the window's card on the desktop. The windows are the account's, so every session on it counts toward that step, not only this one. |
+| ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. Once a window has moved since your last message, `+N%` beside its percent says how far, and the window's card on the desktop repeats it. The windows are the account's, so every session on it counts toward that step, not only this one. |
 | 💳 | **`spend`** | The spend limit, when the account has one. |
 | ♻️ | **`cache N%`** | Cache reads as a share of all input tokens in the last response. |
-| 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription this is not what you are billed — your plan counts against the `5h` / `wk` limits. |
+| 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription this is not what you are billed — your plan counts against the `5h` / `wk` limits. On the desktop it is in the card that opens over `cache`, so the meters keep one row however large it grows. |
 
 Percent turns amber at 60% and red at 85%.
 

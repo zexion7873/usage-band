@@ -5,8 +5,8 @@ export const tone = (percent: number) => (percent >= 85 ? 'over' : percent >= 60
 const FILL = { calm: '#4177d0', hot: '#bf882e', over: '#c04742' } as const
 export const PACE_TICK = '#9c9c9c'
 export const COMPACT_TICK = '#c04742'
-// Three bars share the 768 px desktop row: at 80 the cost wrapped off it by a pixel or two.
-export const BAR = { width: 60, height: 8, tick: 12 }
+// Three bars share the 768 px desktop row with the +N% steps: at 60 the cost wrapped off it once both windows moved.
+export const BAR = { width: 50, height: 8, tick: 12 }
 
 export const clampPct = (p: number) => Math.min(100, Math.max(0, p))
 const at = (percent: number) => Math.round((clampPct(percent) / 100) * BAR.width)

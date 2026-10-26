@@ -36,9 +36,7 @@ for (const m of meters) {
   x += m.detail.length * CHAR + 2 * CHAR
 }
 parts.push(text(x, 'cache 83%'))
-const cost = '$1.23'
-const width = x + 'cache 83%'.length * CHAR + 6 * CHAR + cost.length * CHAR + PAD
-parts.push(`<text x="${width - PAD}" y="${ROW_Y + FONT / 2 - 2}" fill="${DIM}" text-anchor="end">${cost}</text>`)
+const width = x + 'cache 83%'.length * CHAR + PAD
 
 const height = 52
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="${FONT}">
