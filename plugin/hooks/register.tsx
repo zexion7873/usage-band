@@ -275,9 +275,10 @@ export const register: Register = on => {
         {below}
         {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps.
             One wrap row: a nested one took a whole line once it overflowed, pushing the cost onto a line alone. */}
-        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={2} rowGap={1}>
+        <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={3} rowGap={1}>
           {meters.map(m => (
-            <Box key={m.key} flexDirection="row" alignItems="center" gap={1}>
+            // Half a cell inside a meter against three between: at 1 and 2 the four blocks read as one run of text.
+            <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5}>
               <Text dimColor>{m.label}</Text>
               <Svg
                 source={bar(m.percent, m.marks)}
