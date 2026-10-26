@@ -144,7 +144,7 @@ test('reset countdown keeps moving while the session sits idle', async ($, on) =
   await ui.unmount()
 })
 
-test('a window an idle session sat past the reset of reads reset, not its old fill', async ($, on) => {
+test('a window an idle session sat past the reset of reads reset and a dash, not its old fill or a 0 it never read', async ($, on) => {
   const clock = mock.clock(on, { now: NOW })
   engine(on)
   await $.session.measure({
@@ -157,6 +157,9 @@ test('a window an idle session sat past the reset of reads reset, not its old fi
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await desktop.find({ type: 'Text', text: /^reset$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^89%$/ })).toBeUndefined()
+  // Other sessions on the account may have spent since the reset: 0% would be a reading nobody took.
+  expect(await desktop.find({ type: 'Text', text: /^0%$/ })).toBeUndefined()
+  expect(await desktop.find({ type: 'Text', text: /^—$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^0m$/ })).toBeUndefined()
   const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
   expect(fiveHour?.props.source).not.toContain('#9c9c9c')
@@ -164,7 +167,9 @@ test('a window an idle session sat past the reset of reads reset, not its old fi
   await desktop.unmount()
 
   const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect((await terminal.findAll({ type: 'Text' })).map(t => t.text).join('|')).toContain('(reset)')
+  const line = (await terminal.findAll({ type: 'Text' })).map(t => t.text).join('')
+  expect(line).toContain('5h — (reset)')
+  expect(line).not.toContain('5h 0%')
   await terminal.unmount()
 })
 
