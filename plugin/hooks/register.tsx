@@ -317,7 +317,7 @@ export const register: Register = on => {
                   {m.parts.map(p => (
                     <Text key={p.name}>
                       <Text color={p.color}>■ </Text>
-                      <Text dimColor>{`${p.name} ~${p.size}`}</Text>
+                      <Text dimColor>{`${p.name}: ~${p.size}`}</Text>
                     </Text>
                   ))}
                 </Box>

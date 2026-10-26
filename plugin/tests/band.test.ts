@@ -398,7 +398,7 @@ test('desktop meter with detail reveals it in a hover card; one without draws no
   expect(ctx?.props.alt).toBe(
     'ctx: 0% used · auto-compact: 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
   )
-  expect(await desktop.find({ type: 'Text', text: /^Messages ~6k$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^Messages: ~6k$/ })).toBeDefined()
   // Hex values as sampled from the desktop /context panel, which colours the four largest and greys the rest.
   // The auto-compact line above them is the card's first line, so it reads as plain text with no square.
   const swatches = await desktop.findAll({ type: 'Text', text: /^■ $/ })
