@@ -75,8 +75,9 @@ reds one is a change in behaviour, not a test to update.
   `turn.start`: a background agent's report starts a main turn of its own (its
   submission's origin is `peer`). The desktop shows the step on the row as well
   as in the card. That row fits one line in a default-width pane only with
-  `BAR.width` at 50 and the cost moved into cache's card: the cost grows
-  without bound, so on the row it wraps sooner or later.
+  `BAR.width` at 60, half-cell gaps inside each meter, and the cost moved into
+  cache's card: the cost grows without bound, so on the row it wraps sooner or
+  later.
 
 Two more have no test yet:
 

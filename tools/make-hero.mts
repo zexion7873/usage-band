@@ -8,7 +8,7 @@ const out = process.argv[2] ?? new URL('../docs/band.svg', import.meta.url).path
 
 const FONT = 12
 const CHAR = 7
-const GAP = 6
+const GAP = 3
 const DIM = '#9b9993'
 const TEXT_COLOR = { hot: '#d19a3c', over: '#d9605a' } as const
 
@@ -33,7 +33,7 @@ for (const m of meters) {
   parts.push(text(x, `${m.percent}%`, 'tone' in m ? TEXT_COLOR[m.tone] : DIM))
   x += `${m.percent}%`.length * CHAR + GAP
   parts.push(text(x, m.detail))
-  x += m.detail.length * CHAR + 2 * CHAR
+  x += m.detail.length * CHAR + 3 * CHAR
 }
 parts.push(text(x, 'cache 83%'))
 const width = x + 'cache 83%'.length * CHAR + PAD
