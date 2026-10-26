@@ -428,10 +428,12 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   // One wrap row for meters and cache: a nested wrap row took a whole line once it overflowed.
   const rows = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexWrap !== undefined)
   expect(rows.map(b => [b.props.flexWrap, b.props.rowGap])).toEqual([['wrap', 1]])
-  // Tight within a meter, loose between them: at 1ch and 2ch the four blocks read as one run of text.
-  expect(rows.map(b => b.props.columnGap)).toEqual([3])
+  // Each block holds a share of the row sized to its widest likely content; the shares sum to the whole row, so no gap.
+  expect(rows.map(b => b.props.columnGap)).toEqual([0])
   const meters = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.gap !== undefined)
   expect(meters.map(b => b.props.gap)).toEqual([0.5, 0.5])
+  const shares = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined)
+  expect(shares.map(b => b.props.minWidth)).toEqual(['28%', '30%', '12%'])
   expect((await desktop.findAll({ type: 'Box' })).filter(b => b.props.flexGrow !== undefined)).toEqual([])
   await desktop.unmount()
 })

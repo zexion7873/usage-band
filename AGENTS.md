@@ -77,7 +77,8 @@ reds one is a change in behaviour, not a test to update.
   as in the card. That row fits one line in a default-width pane only with
   `BAR.width` at 60, half-cell gaps inside each meter, and the cost moved into
   cache's card: the cost grows without bound, so on the row it wraps sooner or
-  later.
+  later. Each block's `minWidth` share (`ROW_SHARE`) is proportional to its
+  widest likely content; change what a block can show and its share follows.
 
 Two more have no test yet:
 
