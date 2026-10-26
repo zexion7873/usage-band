@@ -73,7 +73,8 @@ screen reader also reads:
   sizes are a local estimate (`~`) and can differ from `/context`, which counts
   them exactly. Each square marks a rank the way `/context` colours its own —
   blue, orange, green, amber, then grey — so where the two rankings differ, a
-  category's colour differs too.
+  category's colour differs too. Every other card line opens with a grey
+  square, so a coloured one always marks a rank.
 - **A rate-limit window**: how far it moved since your last message, when it
   moved, how much of the window has elapsed, where it ends up
   if the rest of it burns at the rate so far — in amber when that runs it out

@@ -276,6 +276,13 @@ export const register: Register = on => {
     }
 
     const { Box, Text, Svg } = $.ui.resolve(e)
+    // A card line under its title, in grey: colour stays for what it means (ctx's ranked categories).
+    const item = (l: { text: string; isWarning: boolean }) => (
+      <Text key={l.text}>
+        <Text color={CONTEXT_SWATCH_REST}>■ </Text>
+        {l.isWarning ? <Text color="warning">{l.text}</Text> : <Text dimColor>{l.text}</Text>}
+      </Text>
+    )
     return (
       <Box flexDirection="column">
         {below}
@@ -303,13 +310,7 @@ export const register: Register = on => {
                 // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{m.title}</Text>
-                  {m.extra.map(l =>
-                    l.isWarning ? (
-                      <Text key={l.text} color="warning">{l.text}</Text>
-                    ) : (
-                      <Text key={l.text} dimColor>{l.text}</Text>
-                    ),
-                  )}
+                  {m.extra.map(item)}
                   {m.parts.map(p => (
                     <Text key={p.name}>
                       <Text color={p.color}>■ </Text>
@@ -327,8 +328,8 @@ export const register: Register = on => {
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>
-                  <Text dimColor>at API prices</Text>
-                  <Text dimColor>on a plan, 5h and wk are what count</Text>
+                  {item(line('at API prices'))}
+                  {item(line('a plan uses 5h and wk'))}
                 </Box>
               )}
             </Box>
