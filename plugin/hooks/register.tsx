@@ -40,7 +40,9 @@ const resetClock = (resetsAt: string, now: number) => {
   return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
 }
 
-const line = (text: string, isWarning = false) => ({ text, isWarning })
+const line = (text: string, isWarning = false) => ({ text, isWarning, transient: false })
+// A card line that comes and goes; it opens with a grey square and sits below the lines that are always there.
+const transient = (l: ReturnType<typeof line>) => ({ ...l, transient: true })
 
 // Where the window ends up if the rest of it burns at the rate so far; running out before the reset is a warning.
 const forecast = (limit: SessionRateLimit, now: number) => {
@@ -51,8 +53,8 @@ const forecast = (limit: SessionRateLimit, now: number) => {
   if (left <= 0 || elapsed < (span * MIN_FORECAST_PCT) / 100) return undefined
   const atReset = (limit.percentUsed * span) / elapsed
   return atReset < 100
-    ? line(`at this speed: ${Math.round(atReset)}% at reset`)
-    : line(`at this speed: all used in ${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
+    ? line(`at reset: ~${Math.round(atReset)}%`)
+    : line(`runs out: in ~${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
@@ -195,7 +197,7 @@ export const register: Register = on => {
         figure: `${ctxPercent}%`,
         detail: ctxDetail,
         moved: '',
-        extra: detail?.compactPercent === undefined ? [] : [line(`auto-compact: at ${detail.compactPercent}%`)],
+        extra: detail?.compactPercent === undefined ? [] : [line(`auto-compact: ${detail.compactPercent}%`)],
         // The summary breakdown is a local estimate; /context counts with the token-count API.
         parts: (detail?.contextParts ?? []).map((p, rank) => ({
           name: p.name,
@@ -217,7 +219,7 @@ export const register: Register = on => {
             figure: '—',
             detail: 'reset',
             moved: '',
-            extra: [line(`reset at ${clockTime(new Date(limit.resetsAt))}`), line('new number after your next message')],
+            extra: [line(`reset: ${clockTime(new Date(limit.resetsAt))}`), line('new number: after next message')],
             parts: [],
             marks: [],
           }
@@ -233,17 +235,18 @@ export const register: Register = on => {
         return {
           key: limit.kind,
           label,
-          // Plain words: many readers of the card do not have English as a first language.
+          // Plain words, every card line as `name: value` (`~` for an estimate): many readers do not have English first.
           title: `${label}: ${used}% used`,
           percent: used,
           figure: `${used}%`,
           detail: reset,
           moved,
           extra: [
-            ...(moved === '' ? [] : [line(`since your last message: ${moved}`)]),
             ...(paceAt === undefined ? [] : [line(`time passed: ${paceAt}%`)]),
-            ...(ahead === undefined ? [] : [ahead]),
             ...(limit.resetsAt === undefined ? [] : [line(`reset: ${resetClock(limit.resetsAt, now)}`)]),
+            // Absent early in a window; the step changes with every message, so it goes last.
+            ...(ahead === undefined ? [] : [transient(ahead)]),
+            ...(moved === '' ? [] : [transient(line(`since last message: ${moved}`))]),
           ],
           parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
@@ -276,6 +279,13 @@ export const register: Register = on => {
     }
 
     const { Box, Text, Svg } = $.ui.resolve(e)
+    // A card line under its title; grey, so a coloured square still always means a rank (ctx's categories).
+    const item = (l: ReturnType<typeof line>) => (
+      <Text key={l.text}>
+        {l.transient && <Text color={CONTEXT_SWATCH_REST}>■ </Text>}
+        {l.isWarning ? <Text color="warning">{l.text}</Text> : <Text dimColor>{l.text}</Text>}
+      </Text>
+    )
     return (
       <Box flexDirection="column">
         {below}
@@ -303,17 +313,11 @@ export const register: Register = on => {
                 // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{m.title}</Text>
-                  {m.extra.map(l =>
-                    l.isWarning ? (
-                      <Text key={l.text} color="warning">{l.text}</Text>
-                    ) : (
-                      <Text key={l.text} dimColor>{l.text}</Text>
-                    ),
-                  )}
+                  {m.extra.map(item)}
                   {m.parts.map(p => (
                     <Text key={p.name}>
                       <Text color={p.color}>■ </Text>
-                      <Text dimColor>{`${p.name} ~${p.size}`}</Text>
+                      <Text dimColor>{`${p.name}: ~${p.size}`}</Text>
                     </Text>
                   ))}
                 </Box>
@@ -327,8 +331,8 @@ export const register: Register = on => {
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>
-                  <Text dimColor>at API prices</Text>
-                  <Text dimColor>on a plan, 5h and wk are what count</Text>
+                  {item(line('based on: API prices'))}
+                  {item(line('on a plan: not billed'))}
                 </Box>
               )}
             </Box>

@@ -71,14 +71,14 @@ test('band shows context fill and each rate-limit window with time to reset', as
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const alts = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
-  expect(alts[0]).toBe('ctx: 42% used · auto-compact: at 80% · Messages about 50k · System tools about 20k')
+  expect(alts[0]).toBe('ctx: 42% used · auto-compact: 80% · Messages about 50k · System tools about 20k')
   // The reset clock is the machine's local time, so only its shape is pinned.
-  expect(alts[1]).toMatch(/^5h: 12% used · time passed: 33% · at this speed: 36% at reset · reset: \d\d:\d\d$/)
+  expect(alts[1]).toMatch(/^5h: 12% used · time passed: 33% · reset: \d\d:\d\d · at reset: ~36%$/)
   expect(alts[2]).toMatch(
-    /^wk: 89% used · time passed: 59% · at this speed: all used in 12h14m · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/,
+    /^wk: 89% used · time passed: 59% · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d · runs out: in ~12h14m$/,
   )
-  expect((await desktop.find({ type: 'Text', text: /^at this speed: all used in 12h14m$/ }))?.props.color).toBe('warning')
-  expect((await desktop.find({ type: 'Text', text: /^at this speed: 36% at reset$/ }))?.props.color).toBeUndefined()
+  expect((await desktop.find({ type: 'Text', text: /^runs out: in ~12h14m$/ }))?.props.color).toBe('warning')
+  expect((await desktop.find({ type: 'Text', text: /^at reset: ~36%$/ }))?.props.color).toBeUndefined()
   const [ctx, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(wk?.props.isInteractive).toBeUndefined()
   expect(ctx?.props.source).toContain('<rect x="47" width="2" height="12" fill="#c04742"/>')
@@ -97,7 +97,13 @@ test('band shows context fill and each rate-limit window with time to reset', as
   // The cost moved into cache's card: it grows without bound and pushed itself off the row.
   expect(await desktop.find({ type: 'Text', text: /^\$1\.23$/ })).toBeUndefined()
   expect(await desktop.find({ type: 'Text', text: /^cost: \$1\.23$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^at API prices$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^based on: API prices$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^on a plan: not billed$/ })).toBeDefined()
+  // Lines that are always there read as plain text; a grey square marks one that comes and goes (the forecast here),
+  // so the cost card has none. ctx's ranked categories keep their colours.
+  const squares = (await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)
+  const grey = '#97958d'
+  expect(squares).toEqual(['#3987e5', '#d95926', grey, grey])
   await desktop.unmount()
 })
 
@@ -166,7 +172,7 @@ test('a window an idle session sat past the reset of reads reset and a dash, not
   expect(await desktop.find({ type: 'Text', text: /^0m$/ })).toBeUndefined()
   const [, fiveHour] = await desktop.findAll({ type: 'Svg' })
   expect(fiveHour?.props.source).not.toContain('#9c9c9c')
-  expect(fiveHour?.props.alt).toMatch(/^5h: reset · reset at \d\d:\d\d · new number after your next message$/)
+  expect(fiveHour?.props.alt).toMatch(/^5h: reset · reset: \d\d:\d\d · new number: after next message$/)
   await desktop.unmount()
 
   const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
@@ -228,9 +234,9 @@ test('a rate-limit window shows how far it moved since your last message, until 
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
-  expect(fiveHour?.props.alt).toMatch(/^5h: 13% used · since your last message: \+1% · time passed: 33% · /)
-  expect(wk?.props.alt).not.toContain('since your last message')
-  expect(await desktop.find({ type: 'Text', text: /^since your last message: \+1%$/ })).toBeDefined()
+  expect(fiveHour?.props.alt).toMatch(/^5h: 13% used · time passed: 33% · reset: \d\d:\d\d · at reset: ~39% · since last message: \+1%$/)
+  expect(wk?.props.alt).not.toContain('since last message')
+  expect(await desktop.find({ type: 'Text', text: /^since last message: \+1%$/ })).toBeDefined()
   expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)).toEqual(['+1%'])
   await desktop.unmount()
 
@@ -348,7 +354,7 @@ test('band keeps small context categories readable', async ($, on) => {
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [ctx] = await desktop.findAll({ type: 'Svg' })
-  expect(ctx?.props.alt).toBe('ctx: 0% used · auto-compact: at 16% · System prompt about 5k · Messages about 412')
+  expect(ctx?.props.alt).toBe('ctx: 0% used · auto-compact: 16% · System prompt about 5k · Messages about 412')
   await desktop.unmount()
 })
 
@@ -387,13 +393,14 @@ test('desktop meter with detail reveals it in a hover card; one without draws no
   // FoundElement carries no `hover`, so the reveal itself is checked by eye on the desktop.
   expect(cards.map(b => b.props.position)).toEqual(['absolute'])
   expect(await desktop.find({ type: 'Text', text: /^ctx: 0% used$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^auto-compact: at 16%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^auto-compact: 16%$/ })).toBeDefined()
   const [ctx] = await desktop.findAll({ type: 'Svg' })
   expect(ctx?.props.alt).toBe(
-    'ctx: 0% used · auto-compact: at 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
+    'ctx: 0% used · auto-compact: 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
   )
-  expect(await desktop.find({ type: 'Text', text: /^Messages ~6k$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^Messages: ~6k$/ })).toBeDefined()
   // Hex values as sampled from the desktop /context panel, which colours the four largest and greys the rest.
+  // The auto-compact line above them is the card's first line, so it reads as plain text with no square.
   const swatches = await desktop.findAll({ type: 'Text', text: /^■ $/ })
   expect(swatches.map(s => s.props.color)).toEqual(['#3987e5', '#d95926', '#189e71', '#c98502', '#97958d'])
   await desktop.unmount()

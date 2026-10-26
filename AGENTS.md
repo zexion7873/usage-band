@@ -98,7 +98,10 @@ theme keys `warning` / `error`. The `ctx` hover card's category squares are lite
 `/context` panel, which colours categories by rank — the four largest blue,
 orange, green, amber, the rest grey — whatever their theme key. The card ranks
 by the local estimate, so its colours mark rank, not a category's `/context`
-colour. A category's
+colour. Under a card's title, lines that are always there are plain text and
+come first; a line that comes and goes (a window's forecast and step) opens
+with the rest-grey square (`CONTEXT_SWATCH_REST`) and sits below them, so a
+coloured square in a card always means a rank. A category's
 own `color` key draws the terminal's palette instead. The 60% / 85% thresholds in `tone()` are quoted in `README.md`; change
 both.
 
