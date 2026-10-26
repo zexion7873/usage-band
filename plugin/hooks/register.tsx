@@ -190,6 +190,7 @@ export const register: Register = on => {
         label: 'ctx',
         title: `ctx: ${ctxPercent}% used`,
         percent: ctxPercent,
+        figure: `${ctxPercent}%`,
         detail: ctxDetail,
         moved: '',
         extra: detail?.compactPercent === undefined ? [] : [line(`auto-compact: at ${detail.compactPercent}%`)],
@@ -210,6 +211,8 @@ export const register: Register = on => {
             label,
             title: `${label}: reset`,
             percent: 0,
+            // The window is the account's: other sessions may have spent since the reset, so no figure until a reading.
+            figure: '—',
             detail: 'reset',
             moved: '',
             extra: [line(`reset at ${clockTime(new Date(limit.resetsAt))}`), line('new number after your next message')],
@@ -231,6 +234,7 @@ export const register: Register = on => {
           // Plain words: many readers of the card do not have English as a first language.
           title: `${label}: ${used}% used`,
           percent: used,
+          figure: `${used}%`,
           detail: reset,
           moved,
           extra: [
@@ -257,7 +261,7 @@ export const register: Register = on => {
             {meters.map((m, i) => (
               <Text key={m.key}>
                 <Text dimColor>{i > 0 ? ' · ' : ''}{m.label} </Text>
-                <Text color={TEXT_COLOR[tone(m.percent)]} dimColor={tone(m.percent) === 'calm'}>{m.percent}%</Text>
+                <Text color={TEXT_COLOR[tone(m.percent)]} dimColor={tone(m.percent) === 'calm'}>{m.figure}</Text>
                 {m.moved && <Text> {m.moved}</Text>}
                 <Text dimColor>{m.detail && ` (${m.detail})`}</Text>
               </Text>
@@ -287,9 +291,9 @@ export const register: Register = on => {
                 height={BAR.tick}
               />
               {tone(m.percent) === 'calm' ? (
-                <Text dimColor>{m.percent}%</Text>
+                <Text dimColor>{m.figure}</Text>
               ) : (
-                <Text color={TEXT_COLOR[tone(m.percent)]}>{m.percent}%</Text>
+                <Text color={TEXT_COLOR[tone(m.percent)]}>{m.figure}</Text>
               )}
               {m.moved && <Text dimColor>{m.moved}</Text>}
               {m.detail && <Text dimColor>{m.detail}</Text>}

@@ -90,8 +90,9 @@ In a terminal too narrow for all of it, the line stays one line and ends in
 
 Reset countdowns and pace ticks keep moving while the session sits idle — the
 band redraws once a minute rather than waiting for the next response. A window
-whose reset passes while the session sits idle reads `reset` until the next
-response brings its new figure.
+whose reset passes while the session sits idle reads `— (reset)` until the next
+response brings its new figure; not `0%`, since other sessions on the account may
+already have spent from the new window.
 
 ### 🎯 Use cases
 
