@@ -322,7 +322,7 @@ export const register: Register = on => {
           ))}
           {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
           {(cache || cost) && (
-            <Box key="cache" flexDirection="row" alignItems="center" minWidth={ROW_SHARE.cache}>
+            <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={ROW_SHARE.cache}>
               <Text dimColor>{cache || cost}</Text>
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
