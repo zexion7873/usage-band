@@ -26,9 +26,12 @@ module run inside Claude Code's own engine. It:
 - reads the session's usage — context fill, rate-limit windows, cost, and the
   context breakdown — through the engine's `$.session.usage()` and the
   `session.measure` event;
-- keeps the latest figures in one plugin-state atom;
+- keeps the latest figures, and which rate-limit windows it has warned about,
+  in two plugin-state atoms;
 - draws them above the prompt: an SVG image per meter on the desktop, text in
-  the terminal.
+  the terminal;
+- shows a toast, once per window, when a rate-limit window is on course to run
+  out before it resets.
 
 It makes no network requests, opens no ports, makes no model calls, runs no
 shell commands and writes no files. `claude plugin validate plugin` prints every
@@ -52,7 +55,7 @@ unrelated to each other:
 
 The engine calls the module makes are exactly: `$.clock.every`, `$.clock.now`,
 `$.session.usage`, `$.state.get`, `$.state.set`, `$.ui.invalidate`,
-`$.ui.resolve`. None of them reaches the network.
+`$.ui.resolve`, `$.ui.toast`. None of them reaches the network.
 
 ### In scope
 
