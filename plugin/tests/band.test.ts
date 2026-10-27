@@ -579,6 +579,22 @@ test('desktop band keeps the cost on the row while there is no cache figure to h
   await desktop.unmount()
 })
 
+test('desktop band draws the figures on its row with digits of one width', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T03:20:00Z' }],
+    cost: { usd: 1.234 },
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const tabular = (await desktop.findAll({ type: 'Text' })).filter(t => t.props.tabular === true).map(t => t.text)
+  expect(tabular).toEqual(['42%', '84k/200k', '12%', '3h20m', 'cache 83%'])
+  await desktop.unmount()
+})
+
 test('terminal band stays one line, cut at the edge rather than wrapped meter by meter', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)

@@ -48,7 +48,7 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 
 > [!IMPORTANT]
 > **Requirements:** a Claude Code build with function-hook plugins (mods). CI
-> validates and tests against Claude Code 2.1.291; older builds are unmeasured.
+> validates and tests against Claude Code 2.1.308; older builds are unmeasured.
 
 ---
 

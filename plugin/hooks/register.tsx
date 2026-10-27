@@ -326,13 +326,14 @@ export const register: Register = on => {
           width={BAR.width}
           height={BAR.tick}
         />
+        {/* Row figures change by themselves; with proportional digits every meter after one would shift. */}
         {tone(m.percent) === 'calm' ? (
-          <Text dimColor>{m.figure}</Text>
+          <Text dimColor tabular>{m.figure}</Text>
         ) : (
-          <Text color={TEXT_COLOR[tone(m.percent)]}>{m.figure}</Text>
+          <Text color={TEXT_COLOR[tone(m.percent)]} tabular>{m.figure}</Text>
         )}
-        {m.moved && <Text dimColor>{m.moved}</Text>}
-        {m.detail && <Text dimColor>{m.detail}</Text>}
+        {m.moved && <Text dimColor tabular>{m.moved}</Text>}
+        {m.detail && <Text dimColor tabular>{m.detail}</Text>}
         {m.extra.length + m.parts.length > 0 && (
           // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
           <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
@@ -358,7 +359,7 @@ export const register: Register = on => {
           {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
           {(cache || cost) && (
             <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={ROW_SHARE.cache}>
-              <Text dimColor>{cache || cost}</Text>
+              <Text dimColor tabular>{cache || cost}</Text>
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>

@@ -12,7 +12,7 @@ claude --version
 ```
 
 The mod needs a Claude Code build with function-hook plugins. CI validates and
-tests it against 2.1.291; older builds are unmeasured. If the user's version is
+tests it against 2.1.308; older builds are unmeasured. If the user's version is
 older, tell them so and suggest updating Claude Code first — do not install
 and hope.
 
