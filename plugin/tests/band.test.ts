@@ -413,6 +413,46 @@ for (const source of ['clear', 'resume', 'fork'] as const) {
   })
 }
 
+// A relaunched session process has no API response yet, so usage() holds no rate-limit reading.
+test('a session that starts with no rate-limit reading holds 5h and wk with a dash until a measure says which windows exist', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const alts = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
+  expect(alts.slice(1)).toEqual(['5h: no reading · new number: after next message', 'wk: no reading · new number: after next message'])
+  expect((await desktop.findAll({ type: 'Text', text: /^—$/ })).length).toBe(2)
+  await desktop.unmount()
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const line = (await terminal.findAll({ type: 'Text' })).filter(t => t.props.wrap !== undefined).map(t => t.text)
+  expect(line).toEqual(['ctx 42% (84k/200k) · 5h — · wk — · cache 83%'])
+  await terminal.unmount()
+
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T03:20:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+  const after = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await after.findAll({ type: 'Svg' })).map(s => String(s.props.alt).split(' · ')[0])).toEqual(['ctx: 42% used', '5h: 12% used'])
+  await after.unmount()
+})
+
+test('an account with no rate limits drops the placeholders at its first measure', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], changed: ['context'] })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await desktop.findAll({ type: 'Svg' })).length).toBe(1)
+  await desktop.unmount()
+})
+
 test('band stays out of the way until the first measurement', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)

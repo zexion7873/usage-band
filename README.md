@@ -98,7 +98,9 @@ Reset countdowns and pace ticks keep moving while the session sits idle — the
 band redraws once a minute rather than waiting for the next response. A window
 whose reset passes while the session sits idle reads `— (reset)` until the next
 response brings its new figure; not `0%`, since other sessions on the account may
-already have spent from the new window.
+already have spent from the new window. A session that starts with no reading
+yet — a new one, or one the desktop app relaunched while it sat idle — holds
+`5h` and `wk` at `—` until the first response says which windows the account has.
 
 ### 🎯 Use cases
 

@@ -125,9 +125,15 @@ const withContext = (prev: UsageBand, tokens: number): UsageBand => ({
   contextPercent: Math.round(clampPct((100 * tokens) / prev.contextWindow)),
 })
 
+// A subscription's windows: a new or relaunched process has no reading until its first response, so they hold a dash.
+const AWAITED = ['five_hour', 'seven_day']
+
 const seed = async ($: EngineInterface) => {
   const { context, rateLimits, cost } = await $.session.usage({ breakdown: 'summary' })
-  await update($, usage, () => snapshot(context, rateLimits, cost, detailOf(context.breakdown, context.window)))
+  await update($, usage, () => ({
+    ...snapshot(context, rateLimits, cost, detailOf(context.breakdown, context.window)),
+    limitsPending: rateLimits.length === 0,
+  }))
 }
 
 export const register: Register = on => {
@@ -280,6 +286,21 @@ export const register: Register = on => {
           ],
           parts: [],
           marks: paceAt === undefined ? [] : [{ percent: paceAt, color: PACE_TICK }],
+        }
+      }),
+      ...(current.limitsPending ? AWAITED : []).map(kind => {
+        const label = LABELS[kind]!
+        return {
+          key: kind,
+          label,
+          title: `${label}: no reading`,
+          percent: 0,
+          figure: '—',
+          detail: '',
+          moved: '',
+          extra: [line('new number: after next message')],
+          parts: [],
+          marks: [],
         }
       }),
     ]
