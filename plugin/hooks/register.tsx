@@ -311,44 +311,45 @@ export const register: Register = on => {
         {l.isWarning ? <Text color="warning">{l.text}</Text> : <Text dimColor>{l.text}</Text>}
       </Text>
     )
+    const meterBox = (m: (typeof meters)[number]) => (
+      // A minimum, not a width: content past its share widens the block and wraps the row rather than overlapping.
+      <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={ROW_SHARE[m.key]}>
+        <Text dimColor>{m.label}</Text>
+        <Svg
+          source={bar(m.percent, m.marks)}
+          alt={[m.title, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
+          width={BAR.width}
+          height={BAR.tick}
+        />
+        {tone(m.percent) === 'calm' ? (
+          <Text dimColor>{m.figure}</Text>
+        ) : (
+          <Text color={TEXT_COLOR[tone(m.percent)]}>{m.figure}</Text>
+        )}
+        {m.moved && <Text dimColor>{m.moved}</Text>}
+        {m.detail && <Text dimColor>{m.detail}</Text>}
+        {m.extra.length + m.parts.length > 0 && (
+          // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
+          <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
+            <Text>{m.title}</Text>
+            {m.extra.map(item)}
+            {m.parts.map(p => (
+              <Text key={p.name}>
+                <Text color={p.color}>■ </Text>
+                <Text dimColor>{`${p.name}: ~${p.size}`}</Text>
+              </Text>
+            ))}
+          </Box>
+        )}
+      </Box>
+    )
     return (
       <Box flexDirection="column">
         {below}
         {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps.
             One wrap row: a nested one took a whole line once it overflowed, pushing the cost onto a line alone. */}
         <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={0} rowGap={1}>
-          {meters.map(m => (
-            // A minimum, not a width: content past its share widens the block and wraps the row rather than overlapping.
-            <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={ROW_SHARE[m.key]}>
-              <Text dimColor>{m.label}</Text>
-              <Svg
-                source={bar(m.percent, m.marks)}
-                alt={[m.title, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
-                width={BAR.width}
-                height={BAR.tick}
-              />
-              {tone(m.percent) === 'calm' ? (
-                <Text dimColor>{m.figure}</Text>
-              ) : (
-                <Text color={TEXT_COLOR[tone(m.percent)]}>{m.figure}</Text>
-              )}
-              {m.moved && <Text dimColor>{m.moved}</Text>}
-              {m.detail && <Text dimColor>{m.detail}</Text>}
-              {m.extra.length + m.parts.length > 0 && (
-                // The desktop pops an absolute hover reveal above its keyed Box as a bordered card, whatever the offsets.
-                <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
-                  <Text>{m.title}</Text>
-                  {m.extra.map(item)}
-                  {m.parts.map(p => (
-                    <Text key={p.name}>
-                      <Text color={p.color}>■ </Text>
-                      <Text dimColor>{`${p.name}: ~${p.size}`}</Text>
-                    </Text>
-                  ))}
-                </Box>
-              )}
-            </Box>
-          ))}
+          {meters.filter(m => ROW_SHARE[m.key] !== undefined).map(meterBox)}
           {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
           {(cache || cost) && (
             <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={ROW_SHARE.cache}>
@@ -362,6 +363,8 @@ export const register: Register = on => {
               )}
             </Box>
           )}
+          {/* A window with no share (a gateway's spend, a kind this band does not know) wraps below the full first row. */}
+          {meters.filter(m => ROW_SHARE[m.key] === undefined).map(meterBox)}
         </Box>
       </Box>
     )

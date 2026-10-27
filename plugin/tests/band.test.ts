@@ -502,6 +502,28 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   await desktop.unmount()
 })
 
+test('desktop band keeps ctx, 5h, wk and cache on the first row and wraps any other window below them', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T03:20:00Z' },
+      { kind: 'seven_day', percentUsed: 21, resetsAt: '2026-10-08T21:00:00Z' },
+      { kind: 'spend_limit', percentUsed: 37, resetsAt: '2026-10-26T00:00:00Z' },
+    ],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  // Blocks in row order: the four shares fill the first row whole, so the spend block, with none, starts the second.
+  const blocks = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.gap !== undefined || b.props.justifyContent !== undefined)
+  expect(blocks.map(b => b.props.minWidth ?? 'none')).toEqual(['28%', '30%', '30%', '12%', 'none'])
+  const [, , , spend] = await desktop.findAll({ type: 'Svg' })
+  expect(spend?.props.alt).toMatch(/^spend: 37% used/)
+  await desktop.unmount()
+})
+
 test('desktop band keeps the cost on the row while there is no cache figure to hang its card on', async ($, on) => {
   mock.clock(on, { now: NOW })
   on('session.measure', (_, e) => ({ changed: e.changed }))
