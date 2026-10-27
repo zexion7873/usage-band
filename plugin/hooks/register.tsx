@@ -156,8 +156,11 @@ export const register: Register = on => {
     for (const limit of e.rateLimits) {
       const p = projection(limit, now)
       const key = `${limit.kind}@${limit.resetsAt}`
-      if (p === undefined || p.atReset < 100 || (await read($, warned)).includes(key)) continue
-      await update($, warned, w => [...w, key])
+      if (p === undefined || p.atReset < 100) continue
+      // update() retries on a version miss, so the call that lands decides: a check before it lets two measures both toast.
+      let fresh = false
+      await update($, warned, w => ((fresh = !w.includes(key)) ? [...w, key] : w))
+      if (!fresh) continue
       const label = LABELS[limit.kind] ?? limit.kind
       // The default 4 s is gone before a glance at the window; past 60 s the engine drops the timeout.
       $.ui.toast(`${label} runs out in ~${duration(p.runsOutIn)}, before its ${resetClock(limit.resetsAt!, now)} reset`, { timeoutMs: 15_000 })

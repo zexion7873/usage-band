@@ -88,8 +88,10 @@ reds one is a change in behaviour, not a test to update.
   wraps to a second row; the first stays `ctx`, `5h`, `wk`, `cache`.
 - **Warn once per window.** A `session.measure` whose forecast runs a window
   out before its reset raises one `$.ui.toast`, remembered as `kind@resetsAt`
-  in the `warned` atom. `$.ui.notify` is no substitute: on the desktop it
-  answers `no-surface` and shows nothing.
+  in the `warned` atom. The membership check sits inside `update`'s callback:
+  `update` retries on a version miss, and a `read` before it lets two
+  overlapping measures both toast. `$.ui.notify` is no substitute: on the
+  desktop it answers `no-surface` and shows nothing.
 
 Two more have no test yet:
 

@@ -288,6 +288,20 @@ test('a window on course to run out before its reset raises one toast, once per 
   expect(toasts[1]).toMatch(/^5h runs out in ~1h20m, before its \d\d:\d\d reset$/)
 })
 
+test('two measures landing together raise a window\'s run-out toast once', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+
+  // Both see wk on course to run out before either has recorded the warning.
+  await Promise.all([measureFiveHour($, 12, '2026-10-06T03:20:00Z'), measureFiveHour($, 13, '2026-10-06T03:20:00Z')])
+  expect(toasts).toHaveLength(1)
+})
+
 test('band shows the context a compaction leaves, not the one it removed', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)
