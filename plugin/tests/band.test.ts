@@ -288,6 +288,43 @@ test('a window on course to run out before its reset raises one toast, once per 
   expect(toasts[1]).toMatch(/^5h runs out in ~1h20m, before its \d\d:\d\d reset$/)
 })
 
+test('two measures landing together raise a window\'s run-out toast once', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+
+  // Both see wk on course to run out before either has recorded the warning.
+  await Promise.all([measureFiveHour($, 12, '2026-10-06T03:20:00Z'), measureFiveHour($, 13, '2026-10-06T03:20:00Z')])
+  expect(toasts).toHaveLength(1)
+})
+
+test('a window kind named like an Object member reads as its own name, with no forecast or row share', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'constructor', percentUsed: 89, resetsAt: '2026-10-06T03:20:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  expect(toasts).toEqual([])
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const blocks = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.gap !== undefined || b.props.justifyContent !== undefined)
+  expect(blocks.map(b => b.props.minWidth ?? 'none')).toEqual(['28%', '12%', 'none'])
+  const [, window] = await desktop.findAll({ type: 'Svg' })
+  expect(window?.props.alt).toMatch(/^constructor: 89% used · reset: \d\d:\d\d$/)
+  await desktop.unmount()
+})
+
 test('band shows the context a compaction leaves, not the one it removed', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)
