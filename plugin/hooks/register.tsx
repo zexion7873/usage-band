@@ -5,6 +5,8 @@ import type { UsageBand, UsageBandDetail, UsageBandLimit } from '../types'
 import { BAR, bar, clampPct, COMPACT_TICK, PACE_TICK, tone } from './bar'
 
 const usage = atom({ plugin: 'usage-band', key: 'usage' } as const, null)
+// Windows already warned about, as `kind@resetsAt`: one toast per window, however often its forecast is re-read.
+const warned = atom({ plugin: 'usage-band', key: 'warned' } as const, [] as string[])
 
 
 const LABELS: Record<string, string> = { five_hour: '5h', seven_day: 'wk', spend_limit: 'spend' }
@@ -44,17 +46,21 @@ const line = (text: string, isWarning = false) => ({ text, isWarning, transient:
 // A card line that comes and goes; it opens with a grey square and sits below the lines that are always there.
 const transient = (l: ReturnType<typeof line>) => ({ ...l, transient: true })
 
-// Where the window ends up if the rest of it burns at the rate so far; running out before the reset is a warning.
-const forecast = (limit: SessionRateLimit, now: number) => {
+// Where the window ends up if the rest of it burns at the rate so far, and how long until it runs out at that rate.
+const projection = (limit: SessionRateLimit, now: number) => {
   const span = WINDOW_MS[limit.kind]
   if (span === undefined || limit.resetsAt === undefined || limit.percentUsed >= 100) return undefined
   const left = Date.parse(limit.resetsAt) - now
   const elapsed = span - left
   if (left <= 0 || elapsed < (span * MIN_FORECAST_PCT) / 100) return undefined
-  const atReset = (limit.percentUsed * span) / elapsed
-  return atReset < 100
-    ? line(`at reset: ~${Math.round(atReset)}%`)
-    : line(`runs out: in ~${duration((elapsed * (100 - limit.percentUsed)) / limit.percentUsed)}`, true)
+  return { atReset: (limit.percentUsed * span) / elapsed, runsOutIn: (elapsed * (100 - limit.percentUsed)) / limit.percentUsed }
+}
+
+// Running out before the reset is a warning.
+const forecast = (limit: SessionRateLimit, now: number) => {
+  const p = projection(limit, now)
+  if (p === undefined) return undefined
+  return p.atReset < 100 ? line(`at reset: ~${Math.round(p.atReset)}%`) : line(`runs out: in ~${duration(p.runsOutIn)}`, true)
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
@@ -144,6 +150,17 @@ export const register: Register = on => {
       const { context } = await $.session.usage({ breakdown: 'summary' })
       const detail = detailOf(context.breakdown, e.context.window)
       await update($, usage, prev => prev && { ...prev, detail })
+    }
+    // The CLI warns near a limit, not ahead of it: this says so while there is still time to slow down.
+    const now = await $.clock.now()
+    for (const limit of e.rateLimits) {
+      const p = projection(limit, now)
+      const key = `${limit.kind}@${limit.resetsAt}`
+      if (p === undefined || p.atReset < 100 || (await read($, warned)).includes(key)) continue
+      await update($, warned, w => [...w, key])
+      const label = LABELS[limit.kind] ?? limit.kind
+      // The default 4 s is gone before a glance at the window; past 60 s the engine drops the timeout.
+      $.ui.toast(`${label} runs out in ~${duration(p.runsOutIn)}, before its ${resetClock(limit.resetsAt!, now)} reset`, { timeoutMs: 15_000 })
     }
     return next(e)
   })

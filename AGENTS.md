@@ -86,6 +86,10 @@ reds one is a change in behaviour, not a test to update.
   The shares fill the row whole, so a window with none (a gateway's
   `spend_limit`, a kind the band does not know) is drawn after `cache` and
   wraps to a second row; the first stays `ctx`, `5h`, `wk`, `cache`.
+- **Warn once per window.** A `session.measure` whose forecast runs a window
+  out before its reset raises one `$.ui.toast`, remembered as `kind@resetsAt`
+  in the `warned` atom. `$.ui.notify` is no substitute: on the desktop it
+  answers `no-surface` and shows nothing.
 
 Two more have no test yet:
 

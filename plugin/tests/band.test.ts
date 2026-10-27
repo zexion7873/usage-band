@@ -267,6 +267,27 @@ test('a window that reset since your last message shows no change from the old o
   await terminal.unmount()
 })
 
+test('a window on course to run out before its reset raises one toast, once per window', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+
+  // wk at 89% with 99 of its 168 hours gone runs out 12h14m on; 5h at 12% with 1h40m gone ends near 36%.
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  await measureFiveHour($, 13, '2026-10-06T03:20:00Z')
+  expect(toasts).toHaveLength(1)
+  expect(toasts[0]).toMatch(/^wk runs out in ~12h14m, before its \w{3} \d\d:\d\d reset$/)
+
+  // A new 5h window at 60% with 2h of 5h gone runs out 1h20m on; wk, already warned, stays quiet.
+  await measureFiveHour($, 60, '2026-10-06T03:00:00Z')
+  expect(toasts).toHaveLength(2)
+  expect(toasts[1]).toMatch(/^5h runs out in ~1h20m, before its \d\d:\d\d reset$/)
+})
+
 test('band shows the context a compaction leaves, not the one it removed', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)
