@@ -282,6 +282,9 @@ test('band shows the context a compaction leaves, not the one it removed', async
   const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /^17%$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^34k\/200k$/ })).toBeDefined()
+  // The card's Messages is the summary, not the 50k removed, so it now ranks below System tools.
+  const [ctx] = await ui.findAll({ type: 'Svg' })
+  expect(ctx?.props.alt).toBe('ctx: 17% used · auto-compact: 80% · System tools about 20k · Messages about 14k')
   await ui.unmount()
 })
 
