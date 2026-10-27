@@ -13,6 +13,8 @@ const LABELS: Record<string, string> = { five_hour: '5h', seven_day: 'wk', spend
 // Desktop row shares, in proportion to each block's widest likely content (`100%`, `199k/200k`, `+12%`, `6d23h`); they sum to 100.
 const ROW_SHARE: Record<string, string> = { ctx: '28%', five_hour: '30%', seven_day: '30%', cache: '12%' }
 const WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day: 7 * 86_400_000 }
+// The engine's `kind` is an open string: a plain index by `constructor` reads Object.prototype's member.
+const own = <T,>(table: Record<string, T>, key: string) => (Object.hasOwn(table, key) ? table[key] : undefined)
 
 const TEXT_COLOR = { calm: undefined, hot: 'warning', over: 'error' } as const
 
@@ -48,7 +50,7 @@ const transient = (l: ReturnType<typeof line>) => ({ ...l, transient: true })
 
 // Where the window ends up if the rest of it burns at the rate so far, and how long until it runs out at that rate.
 const projection = (limit: SessionRateLimit, now: number) => {
-  const span = WINDOW_MS[limit.kind]
+  const span = own(WINDOW_MS, limit.kind)
   if (span === undefined || limit.resetsAt === undefined || limit.percentUsed >= 100) return undefined
   const left = Date.parse(limit.resetsAt) - now
   const elapsed = span - left
@@ -65,7 +67,7 @@ const forecast = (limit: SessionRateLimit, now: number) => {
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
 const pace = (limit: SessionRateLimit, now: number) => {
-  const span = WINDOW_MS[limit.kind]
+  const span = own(WINDOW_MS, limit.kind)
   if (span === undefined || limit.resetsAt === undefined) return undefined
   return Math.round(clampPct(100 * (1 - (Date.parse(limit.resetsAt) - now) / span)))
 }
@@ -161,7 +163,7 @@ export const register: Register = on => {
       let fresh = false
       await update($, warned, w => ((fresh = !w.includes(key)) ? [...w, key] : w))
       if (!fresh) continue
-      const label = LABELS[limit.kind] ?? limit.kind
+      const label = own(LABELS, limit.kind) ?? limit.kind
       // The default 4 s is gone before a glance at the window; past 60 s the engine drops the timeout.
       $.ui.toast(`${label} runs out in ~${duration(p.runsOutIn)}, before its ${resetClock(limit.resetsAt!, now)} reset`, { timeoutMs: 15_000 })
     }
@@ -235,7 +237,7 @@ export const register: Register = on => {
         marks: detail?.compactPercent === undefined ? [] : [{ percent: detail.compactPercent, color: COMPACT_TICK }],
       },
       ...current.rateLimits.map(limit => {
-        const label = LABELS[limit.kind] ?? limit.kind
+        const label = own(LABELS, limit.kind) ?? limit.kind
         // A reading only moves when a response lands, so an idle session can sit past a reset with the old fill.
         if (limit.resetsAt !== undefined && Date.parse(limit.resetsAt) <= now) {
           return {
@@ -316,7 +318,7 @@ export const register: Register = on => {
     )
     const meterBox = (m: (typeof meters)[number]) => (
       // A minimum, not a width: content past its share widens the block and wraps the row rather than overlapping.
-      <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={ROW_SHARE[m.key]}>
+      <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={own(ROW_SHARE, m.key)}>
         <Text dimColor>{m.label}</Text>
         <Svg
           source={bar(m.percent, m.marks)}
@@ -352,7 +354,7 @@ export const register: Register = on => {
         {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps.
             One wrap row: a nested one took a whole line once it overflowed, pushing the cost onto a line alone. */}
         <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={0} rowGap={1}>
-          {meters.filter(m => ROW_SHARE[m.key] !== undefined).map(meterBox)}
+          {meters.filter(m => own(ROW_SHARE, m.key) !== undefined).map(meterBox)}
           {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
           {(cache || cost) && (
             <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={ROW_SHARE.cache}>
@@ -367,7 +369,7 @@ export const register: Register = on => {
             </Box>
           )}
           {/* A window with no share (a gateway's spend, a kind this band does not know) wraps below the full first row. */}
-          {meters.filter(m => ROW_SHARE[m.key] === undefined).map(meterBox)}
+          {meters.filter(m => own(ROW_SHARE, m.key) === undefined).map(meterBox)}
         </Box>
       </Box>
     )
