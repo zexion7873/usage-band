@@ -26,8 +26,8 @@ jobs:
         with:
           node-version: 24
       - name: Claude Code, pinned
-        # Bump together with the README's requirements line.
-        run: npm install -g @anthropic-ai/claude-code@2.1.291 && claude --version
+        # Bump together with the README's requirements line and llms-install.md.
+        run: npm install -g @anthropic-ai/claude-code@2.1.308 && claude --version
       - name: validate the marketplace
         run: claude plugin validate .
       - name: validate the plugin

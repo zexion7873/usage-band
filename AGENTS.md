@@ -175,7 +175,7 @@ are not byte-reproducible.
 `.github/workflows/check.yml` installs Claude Code at a PINNED version from npm,
 then validates the marketplace and the plugin (strict), tests, and checks the
 hero, on every PR and push to `main`. The pin is the version the README's
-requirements line names; bump both together.
+requirements line and `llms-install.md` name; bump all three together.
 
 The version line in `plugin/.claude-plugin/plugin.json` landing on `main` is
 the publish. Tags play no part.
