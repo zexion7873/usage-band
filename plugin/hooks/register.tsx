@@ -164,7 +164,12 @@ export const register: Register = on => {
     await update($, usage, prev => prev && withContext(prev, after))
     const { context } = await $.session.usage({ breakdown: 'summary' })
     const detail = detailOf(context.breakdown, context.window)
-    await update($, usage, prev => prev && { ...prev, detail })
+    // tokensAfter is the summary alone; the next request also carries the system prompt, tools and memory files.
+    // The breakdown still holds the removed Messages row, so its other used rows are that overhead; no such row, no guess.
+    const used = context.breakdown?.categories.filter(c => c.kind === 'used') ?? []
+    const messages = used.find(c => c.name === 'Messages')
+    const overhead = messages === undefined ? 0 : used.reduce((sum, c) => sum + c.tokens, 0) - messages.tokens
+    await update($, usage, prev => prev && { ...withContext(prev, after + overhead), detail })
     return result
   })
 

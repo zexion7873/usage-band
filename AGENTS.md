@@ -62,7 +62,10 @@ reds one is a change in behaviour, not a test to update.
 - **Move `ctx` inside a turn.** `session.measure` fires when a turn ends, not
   per response, so `turn.step` writes each main-thread response's input tokens, and
   `session.compact` writes the result's `tokensAfter` — after a compaction
-  `$.session.usage()` still reports the last response's fill. Both skip
+  `$.session.usage()` still reports the last response's fill. `tokensAfter`
+  is the summary alone, so it adds the breakdown's `used` rows other than
+  `Messages` (the prompt, tools and memory the next request still carries);
+  that breakdown is stale too, its `Messages` row the removed one. Both skip
   subagents; compaction also skips `precompute`.
 - **Keep the terminal band to one line.** It is one `Text` with
   `wrap="truncate-end"`; a row of sibling Texts wraps each meter in a column of
