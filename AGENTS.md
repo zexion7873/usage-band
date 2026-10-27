@@ -83,6 +83,9 @@ reds one is a change in behaviour, not a test to update.
   cache's card: the cost grows without bound, so on the row it wraps sooner or
   later. Each block's `minWidth` share (`ROW_SHARE`) is proportional to its
   widest likely content; change what a block can show and its share follows.
+  The shares fill the row whole, so a window with none (a gateway's
+  `spend_limit`, a kind the band does not know) is drawn after `cache` and
+  wraps to a second row; the first stays `ctx`, `5h`, `wk`, `cache`.
 
 Two more have no test yet:
 
