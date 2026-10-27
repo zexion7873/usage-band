@@ -278,8 +278,39 @@ test('band shows the context a compaction leaves, not the one it removed', async
   // usage() still holds the removed fill here; re-reading it on this source would undo the compaction.
   await $.classic.SessionStart({ source: 'compact' })
 
+  // The 14k summary plus the 20k of System tools the next request still carries; the 50k Messages row is what it removed.
   const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect(await ui.find({ type: 'Text', text: /^7%$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^17%$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^34k\/200k$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a breakdown with no Messages row adds nothing to what a compaction leaves', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({
+    value: {
+      startedAt: NOW,
+      context: {
+        tokens: 84000,
+        window: 200000,
+        percent: 42,
+        breakdown: {
+          ...BREAKDOWN,
+          categories: [{ name: 'System tools', tokens: 20000, color: 'inactive', isDeferred: false, kind: 'used' }],
+        },
+      },
+      rateLimits: [],
+    },
+  }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  const summary: SessionMessage = { role: 'user', text: 'summary', toolUses: [] }
+  on('session.compact', () => ({ messages: [summary], tokensAfter: 14000 }))
+  await $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], changed: ['context'] })
+
+  await $.session.compact({ trigger: 'manual', messages: [summary] })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /^14k\/200k$/ })).toBeDefined()
   await ui.unmount()
 })
