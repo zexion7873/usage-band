@@ -59,6 +59,13 @@ reds one is a change in behaviour, not a test to update.
   band vanishes until the next response. Not `compact`: `usage()` there still
   holds the fill the compaction removed. The clock is not re-armed — only a
   hot reload cancels it.
+- **Hold `5h` and `wk` until a reading.** `usage().rateLimits` holds only what
+  this process's API responses reported, so it is empty at a session's start —
+  including when the desktop app relaunches an idle session's process (seen
+  when an app update moved the engine; no `SessionStart` is logged). `seed` sets
+  `limitsPending`, the band draws both windows at `—`, and the first
+  `session.measure` replaces them with the windows the account really has.
+  The last reading is not kept in `$.store`: the mod stays read-only.
 - **Move `ctx` inside a turn.** `session.measure` fires when a turn ends, not
   per response, so `turn.step` writes each main-thread response's input tokens, and
   `session.compact` writes the result's `tokensAfter` — after a compaction
