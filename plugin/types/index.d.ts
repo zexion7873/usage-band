@@ -19,6 +19,6 @@ export type UsageBand = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'usage-band': { usage: UsageBand | null }
+    'usage-band': { usage: UsageBand | null; warned: string[] }
   }
 }

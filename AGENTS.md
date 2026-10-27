@@ -83,6 +83,10 @@ reds one is a change in behaviour, not a test to update.
   cache's card: the cost grows without bound, so on the row it wraps sooner or
   later. Each block's `minWidth` share (`ROW_SHARE`) is proportional to its
   widest likely content; change what a block can show and its share follows.
+- **Warn once per window.** A `session.measure` whose forecast runs a window
+  out before its reset raises one `$.ui.toast`, remembered as `kind@resetsAt`
+  in the `warned` atom. `$.ui.notify` is no substitute: on the desktop it
+  answers `no-surface` and shows nothing.
 
 Two more have no test yet:
 

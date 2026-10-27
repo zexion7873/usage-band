@@ -64,6 +64,11 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 
 Percent turns amber at 60% and red at 85%.
 
+When a `5h` or `wk` window is on course to run out before it resets, at the
+rate it has burned so far, a toast says so once per window: `5h runs out in
+~40m, before its 15:00 reset`. Claude Code's own notice comes near the limit;
+this one comes while there is still time to slow down.
+
 ### 🖥️ Desktop and terminal
 
 On the desktop each meter is a bar. Hover it for a card with its detail, which a
