@@ -163,12 +163,15 @@ export const register: Register = on => {
     const after = result.tokensAfter
     await update($, usage, prev => prev && withContext(prev, after))
     const { context } = await $.session.usage({ breakdown: 'summary' })
-    const detail = detailOf(context.breakdown, context.window)
     // tokensAfter is the summary alone; the next request also carries the system prompt, tools and memory files.
     // The breakdown still holds the removed Messages row, so its other used rows are that overhead; no such row, no guess.
-    const used = context.breakdown?.categories.filter(c => c.kind === 'used') ?? []
+    const breakdown = context.breakdown
+    const used = breakdown?.categories.filter(c => c.kind === 'used') ?? []
     const messages = used.find(c => c.name === 'Messages')
     const overhead = messages === undefined ? 0 : used.reduce((sum, c) => sum + c.tokens, 0) - messages.tokens
+    // The card lists the summary in place of the removed Messages, so its rows add up to the ctx figure.
+    const categories = breakdown?.categories.map(c => (c === messages ? { ...c, tokens: after } : c))
+    const detail = detailOf(breakdown && categories && { ...breakdown, categories }, context.window)
     await update($, usage, prev => prev && { ...withContext(prev, after + overhead), detail })
     return result
   })

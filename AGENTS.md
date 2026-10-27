@@ -65,7 +65,8 @@ reds one is a change in behaviour, not a test to update.
   `$.session.usage()` still reports the last response's fill. `tokensAfter`
   is the summary alone, so it adds the breakdown's `used` rows other than
   `Messages` (the prompt, tools and memory the next request still carries);
-  that breakdown is stale too, its `Messages` row the removed one. Both skip
+  that breakdown is stale too, its `Messages` row the removed one, so the
+  card shows `tokensAfter` in that row's place. Both skip
   subagents; compaction also skips `precompute`.
 - **Keep the terminal band to one line.** It is one `Text` with
   `wrap="truncate-end"`; a row of sibling Texts wraps each meter in a column of
