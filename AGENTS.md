@@ -185,7 +185,9 @@ hero, on every PR and push to `main`. The pin is the version the README's
 requirements line and `llms-install.md` name; bump all three together.
 
 The version line in `plugin/.claude-plugin/plugin.json` landing on `main` is
-the publish. Tags play no part.
+the publish; a tag publishes nothing. After a release PR merges, tag its merge
+commit with an annotated `vX.Y.Z` (`git tag -a vX.Y.Z <merge> -m "usage-band
+X.Y.Z"`) and push the tag. Every release since 0.1.0 has one.
 
 A repository ruleset on `main` takes a change only through a pull request whose
 `check` job passed, and refuses a direct push, a force-push and deletion. Rename
