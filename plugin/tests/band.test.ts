@@ -77,8 +77,11 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(alts[2]).toMatch(
     /^wk: 89% used · time passed: 59% · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d · runs out: in ~12h14m$/,
   )
-  expect((await desktop.find({ type: 'Text', text: /^runs out: in ~12h14m$/ }))?.props.color).toBe('warning')
-  expect((await desktop.find({ type: 'Text', text: /^at reset: ~36%$/ }))?.props.color).toBeUndefined()
+  // A card line is a name and a value in two columns; a warning colours both.
+  expect((await desktop.find({ type: 'Text', text: /^runs out$/ }))?.props.color).toBe('warning')
+  expect((await desktop.find({ type: 'Text', text: /^in ~12h14m$/ }))?.props.color).toBe('warning')
+  expect((await desktop.find({ type: 'Text', text: /^at reset$/ }))?.props.color).toBeUndefined()
+  expect((await desktop.find({ type: 'Text', text: /^~36%$/ }))?.props.color).toBeUndefined()
   const [ctx, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(wk?.props.isInteractive).toBeUndefined()
   expect(ctx?.props.source).toContain('<rect x="47" width="2" height="12" fill="#c04742"/>')
@@ -97,8 +100,10 @@ test('band shows context fill and each rate-limit window with time to reset', as
   // The cost moved into cache's card: it grows without bound and pushed itself off the row.
   expect(await desktop.find({ type: 'Text', text: /^\$1\.23$/ })).toBeUndefined()
   expect(await desktop.find({ type: 'Text', text: /^cost: \$1\.23$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^based on: API prices$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^on a plan: not billed$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^based on$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^API prices$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^on a plan$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^not billed$/ })).toBeDefined()
   // Lines that are always there read as plain text; a grey square marks one that comes and goes (the forecast here),
   // so the cost card has none. ctx's ranked categories keep their colours.
   const squares = (await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)
@@ -236,8 +241,9 @@ test('a rate-limit window shows how far it moved since your last message, until 
   const [, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
   expect(fiveHour?.props.alt).toMatch(/^5h: 13% used · time passed: 33% · reset: \d\d:\d\d · at reset: ~39% · since last message: \+1%$/)
   expect(wk?.props.alt).not.toContain('since last message')
-  expect(await desktop.find({ type: 'Text', text: /^since last message: \+1%$/ })).toBeDefined()
-  expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)).toEqual(['+1%'])
+  expect(await desktop.find({ type: 'Text', text: /^since last message$/ })).toBeDefined()
+  // 5h's step on the row and as its card's value; wk, which did not move, has neither.
+  expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)).toEqual(['+1%', '+1%'])
   await desktop.unmount()
 
   // A background agent's report starts a main turn of its own, through a submission that is not yours.
@@ -525,12 +531,14 @@ test('desktop meter with detail reveals it in a hover card; one without draws no
   // FoundElement carries no `hover`, so the reveal itself is checked by eye on the desktop.
   expect(cards.map(b => b.props.position)).toEqual(['absolute'])
   expect(await desktop.find({ type: 'Text', text: /^ctx: 0% used$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^auto-compact: 16%$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^auto-compact$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^16%$/ })).toBeDefined()
   const [ctx] = await desktop.findAll({ type: 'Svg' })
   expect(ctx?.props.alt).toBe(
     'ctx: 0% used · auto-compact: 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
   )
-  expect(await desktop.find({ type: 'Text', text: /^Messages: ~6k$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^Messages$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^~6k$/ })).toBeDefined()
   // Hex values as sampled from the desktop /context panel, which colours the four largest and greys the rest.
   // The auto-compact line above them is the card's first line, so it reads as plain text with no square.
   const swatches = await desktop.findAll({ type: 'Text', text: /^■ $/ })
