@@ -154,6 +154,11 @@ Every figure comes from Claude Code's own session usage, read locally. The mod
 writes no files, opens no ports, and makes no network requests or model calls —
 `claude plugin validate plugin` prints every engine call it makes.
 
+Every hook hands its event on unchanged. `classic.SessionStart` (after
+`/clear`, `/resume` and `/branch`) only re-reads the usage, and
+`prompt.submit` only notes each window's reading as the base for `+N%` —
+neither adds context nor touches your prompt.
+
 ---
 
 ## 🩺 Troubleshooting
