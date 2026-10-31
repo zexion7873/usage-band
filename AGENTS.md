@@ -100,8 +100,8 @@ reds one is a change in behaviour, not a test to update.
   row's shares add up to less than 100 and the desktop reports
   `e.viewport.columns`, `fit()` costs the row at `CELL_PX` per cell and each
   block's text at `CHAR_PX` per character, grows every bar on the row alike up
-  to `BAR_MAX`, and sets each block's `minWidth` to its cost; cache takes the
-  rest. Both constants are measured, not reported, so a font or zoom change can
+  to `BAR_MAX`, sets each block's `minWidth` to its cost, and spreads the room a
+  capped bar leaves over the blocks so the gaps stay even; cache takes the rest. Both constants are measured, not reported, so a font or zoom change can
   wrap the row; `SLACK_PCT` is the margin. `minWidth` must be a whole percent:
   the engine drops the whole tree for `45.9%`.
 - **Warn once per window.** A `session.measure` whose forecast runs a window
