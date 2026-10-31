@@ -615,16 +615,54 @@ test('desktop bars grow into the share of a window the account lacks, alike, and
   expect(shares.map(b => b.props.minWidth)).toEqual(['45%', '37%', '18%'])
   await desktop.unmount()
 
-  // At 98 columns (749.7 px) cache's share is 12 and the bars get 87 points: 195 px makes ctx 344.7 (45.98%, 46) and wk
-  // 306.3 (40.86%, 41); at 196 ctx's 345.7 is 46.11%, 47. Cache takes what is left.
+  // At 98 columns (749.7 px) both stop at the 140 px ceiling: ctx 289.7 px (38.6%, 39) and wk 251.3 (33.5%, 34). With
+  // cache's 12 that is 85 of 99, so the 14 spare points go 7 to each block and cache takes what is left.
   const wide = await $.ui.mount({ ...BAND, surface: 'desktop', viewport: { columns: 98, rows: 40 } })
-  expect((await wide.findAll({ type: 'Svg' })).map(s => s.props.width)).toEqual([195, 195])
+  expect((await wide.findAll({ type: 'Svg' })).map(s => s.props.width)).toEqual([140, 140])
   expect((await wide.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined).map(b => b.props.minWidth)).toEqual([
     '46%',
     '41%',
     '13%',
   ])
   await wide.unmount()
+})
+
+test("desktop bars give way to a window's +N% step, and the row still fits", async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const measureWeek = (percentUsed: number) =>
+    $.session.measure({
+      context: { tokens: 999000, window: 1_000_000, percent: 100 },
+      rateLimits: [{ kind: 'seven_day', percentUsed, resetsAt: '2026-10-08T21:00:00Z' }],
+      changed: ['context', 'rateLimits'],
+    })
+  await measureWeek(88)
+  await submit($, 'go', 'composer')
+  await measureWeek(100)
+
+  // The widest likely row: ctx `100%` `999k/1M` (14 chars) costs 149.7 px; wk `100%` `+12%` `2d21h` (15 chars, four
+  // texts) 163.1. At 98 columns (749.7 px) a 140 px bar makes them 289.7 (38.6%, 39) and 303.1 (40.4%, 41): with cache's
+  // 12, 92 of 99, so 3 spare points each.
+  const wide = await $.ui.mount({ ...BAND, surface: 'desktop', viewport: { columns: 98, rows: 40 } })
+  expect(await wide.find({ type: 'Text', text: /^\+12%$/ })).toBeDefined()
+  expect((await wide.findAll({ type: 'Svg' })).map(s => s.props.width)).toEqual([140, 140])
+  expect((await wide.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined).map(b => b.props.minWidth)).toEqual([
+    '42%',
+    '44%',
+    '14%',
+  ])
+  await wide.unmount()
+
+  // At 77 columns (589.05 px) cache's 9 chars cost 86.4 px, 14.7%, so 15, leaving 84. A 90 px bar makes ctx 239.7
+  // (40.7%, 41) and wk 253.1 (42.97%, 43): 84. At 91, wk's 254.1 is 43.1%, 44, one over.
+  const narrow = await $.ui.mount({ ...BAND, surface: 'desktop', viewport: { columns: 77, rows: 40 } })
+  expect((await narrow.findAll({ type: 'Svg' })).map(s => s.props.width)).toEqual([90, 90])
+  expect((await narrow.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined).map(b => b.props.minWidth)).toEqual([
+    '41%',
+    '43%',
+    '16%',
+  ])
+  await narrow.unmount()
 })
 
 test('desktop bars keep their width when every share is taken or the surface reports no width', async ($, on) => {

@@ -21,14 +21,14 @@ const CELL_PX = 7.65
 const CHAR_PX = 9.6
 // One point of the row held back for what text cannot cost: the gaps between a block's children drew ~5 px, not half a cell.
 const SLACK_PCT = 1
-// Without a ceiling an account with no rate-limit windows would stretch ctx across the whole row.
-const BAR_MAX = 200
+// Past ~2.3 times BAR.width a bar outweighs its figures and reads no better; 200 px looked heavy beside 60 px text.
+const BAR_MAX = 140
 
 type RowBlock = { key: string; label: string; figure: string; moved: string; detail: string }
 
 // A window the account lacks (5h on a verified Ultra plan, every window on an API key) leaves its share empty. The bars on
-// the row then grow alike into it, each block's minimum follows its estimate, and cache takes the rest so it still ends at
-// the right edge. A full set of shares, or no measured width, keeps every bar at BAR.width.
+// the row then grow alike into it up to BAR_MAX, room a capped bar leaves is spread over the blocks so the gaps stay even,
+// and cache takes the rest so it still ends at the right edge. A full set of shares, or no measured width, keeps BAR.width.
 const fit = (columns: number | undefined, blocks: RowBlock[], cacheText: string) => {
   const shares = [...blocks.map(b => b.key), ...(cacheText ? ['cache'] : [])].map(k => parseFloat(own(ROW_SHARE, k) ?? '0'))
   if (columns === undefined || shares.reduce((a, s) => a + s, 0) >= 100) return undefined
@@ -47,7 +47,9 @@ const fit = (columns: number | undefined, blocks: RowBlock[], cacheText: string)
   let bar = BAR_MAX
   while (bar > BAR.width && pctsAt(bar).reduce((a, p) => a + p, 0) + cachePct > 100 - SLACK_PCT) bar--
   if (bar === BAR.width) return undefined
-  const pcts = pctsAt(bar)
+  const fitted = pctsAt(bar)
+  const spare = 100 - SLACK_PCT - cachePct - fitted.reduce((a, p) => a + p, 0)
+  const pcts = fitted.map(p => p + Math.floor(spare / fitted.length))
   const minWidth: Record<string, string> = Object.fromEntries(blocks.map((b, i) => [b.key, `${pcts[i]}%`]))
   minWidth.cache = `${100 - pcts.reduce((a, p) => a + p, 0)}%`
   return { bar, minWidth }
