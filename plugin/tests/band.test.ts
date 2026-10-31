@@ -589,6 +589,76 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   await desktop.unmount()
 })
 
+// A verified Ultra plan reports no five-hour window: 5h's 30% of the row would sit empty.
+const measureWeekOnly = ($: Engine) =>
+  $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'seven_day', percentUsed: 21, resetsAt: '2026-10-08T21:00:00Z' }],
+    cost: { usd: 1.234 },
+    changed: ['context', 'rateLimits'],
+  })
+
+test('desktop bars grow into the share of a window the account lacks, alike, and cache still ends the row', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await measureWeekOnly($)
+
+  // 70 columns at 7.65 px is 535.5 px. ctx's text (14 chars at 9.6 px, three half-cell gaps, half-cell padding) costs
+  // 149.7 px and wk's (10 chars) 111.3; cache's 9 chars cost 86.4, 16.1% of the row, so 17, leaving 82 of the 99 points
+  // the slack allows. An 86 px bar makes ctx 235.7 px (44.02%, 45) and wk 197.3 (36.8%, 37): 82. At 87, wk's 198.3 is
+  // 37.03%, 38, one point over.
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop', viewport: { columns: 70, rows: 40 } })
+  const bars = await desktop.findAll({ type: 'Svg' })
+  expect(bars.map(s => s.props.width)).toEqual([86, 86])
+  expect(bars[0]?.props.source).toContain('width="86"')
+  const shares = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined)
+  expect(shares.map(b => b.props.minWidth)).toEqual(['45%', '37%', '18%'])
+  await desktop.unmount()
+
+  // At 98 columns (749.7 px) cache's share is 12 and the bars get 87 points: 195 px makes ctx 344.7 (45.98%, 46) and wk
+  // 306.3 (40.86%, 41); at 196 ctx's 345.7 is 46.11%, 47. Cache takes what is left.
+  const wide = await $.ui.mount({ ...BAND, surface: 'desktop', viewport: { columns: 98, rows: 40 } })
+  expect((await wide.findAll({ type: 'Svg' })).map(s => s.props.width)).toEqual([195, 195])
+  expect((await wide.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined).map(b => b.props.minWidth)).toEqual([
+    '46%',
+    '41%',
+    '13%',
+  ])
+  await wide.unmount()
+})
+
+test('desktop bars keep their width when every share is taken or the surface reports no width', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await measureWeekOnly($)
+  const unmeasured = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await unmeasured.findAll({ type: 'Svg' })).map(s => s.props.width)).toEqual([60, 60])
+  expect((await unmeasured.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined).map(b => b.props.minWidth)).toEqual([
+    '28%',
+    '30%',
+    '12%',
+  ])
+  await unmeasured.unmount()
+
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T03:20:00Z' },
+      { kind: 'seven_day', percentUsed: 21, resetsAt: '2026-10-08T21:00:00Z' },
+    ],
+    changed: ['context', 'rateLimits'],
+  })
+  const full = await $.ui.mount({ ...BAND, surface: 'desktop', viewport: { columns: 98, rows: 40 } })
+  expect((await full.findAll({ type: 'Svg' })).map(s => s.props.width)).toEqual([60, 60, 60])
+  expect((await full.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined).map(b => b.props.minWidth)).toEqual([
+    '28%',
+    '30%',
+    '30%',
+    '12%',
+  ])
+  await full.unmount()
+})
+
 test('desktop band keeps ctx, 5h, wk and cache on the first row and wraps any other window below them', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)

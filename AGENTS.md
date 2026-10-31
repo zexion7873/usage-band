@@ -92,7 +92,18 @@ reds one is a change in behaviour, not a test to update.
   widest likely content; change what a block can show and its share follows.
   The shares fill the row whole, so a window with none (a gateway's
   `spend_limit`, a kind the band does not know) is drawn after `cache` and
-  wraps to a second row; the first stays `ctx`, `5h`, `wk`, `cache`.
+  wraps to a second row; the first stays `ctx`, `5h`, `wk`, `cache`. Each meter
+  pads its right by half a cell inside its share, so a block whose content
+  outgrows it in a narrow pane stays off the next label.
+- **Stretch the bars into a missing window's share.** A verified Ultra plan has
+  no `5h`, an API key has no windows: their shares would sit empty. When the
+  row's shares add up to less than 100 and the desktop reports
+  `e.viewport.columns`, `fit()` costs the row at `CELL_PX` per cell and each
+  block's text at `CHAR_PX` per character, grows every bar on the row alike up
+  to `BAR_MAX`, and sets each block's `minWidth` to its cost; cache takes the
+  rest. Both constants are measured, not reported, so a font or zoom change can
+  wrap the row; `SLACK_PCT` is the margin. `minWidth` must be a whole percent:
+  the engine drops the whole tree for `45.9%`.
 - **Warn once per window.** A `session.measure` whose forecast runs a window
   out before its reset raises one `$.ui.toast`, remembered as `kind@resetsAt`
   in the `warned` atom. The membership check sits inside `update`'s callback:
