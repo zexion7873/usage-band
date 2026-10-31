@@ -579,6 +579,8 @@ test('desktop band wraps its meters in a narrow pane instead of overlapping them
   expect(rows.map(b => b.props.columnGap)).toEqual([0])
   const meters = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.gap !== undefined)
   expect(meters.map(b => b.props.gap)).toEqual([0.5, 0.5])
+  // Padding inside the share: a block whose content outgrows it still keeps its figures off the next label.
+  expect(meters.map(b => b.props.paddingRight)).toEqual([0.5, 0.5])
   const shares = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.minWidth !== undefined)
   expect(shares.map(b => b.props.minWidth)).toEqual(['28%', '30%', '12%'])
   // The last block ends at the right edge, as the first starts at the left, so the row's two margins match.

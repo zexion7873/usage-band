@@ -361,7 +361,8 @@ export const register: Register = on => {
     )
     const meterBox = (m: (typeof meters)[number]) => (
       // A minimum, not a width: content past its share widens the block and wraps the row rather than overlapping.
-      <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={own(ROW_SHARE, m.key)}>
+      // The padding sits inside that minimum (seen on the desktop), so it costs a full row nothing and parts a crowded one.
+      <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={own(ROW_SHARE, m.key)} paddingRight={0.5}>
         <Text dimColor>{m.label}</Text>
         <Svg
           source={bar(m.percent, m.marks)}
