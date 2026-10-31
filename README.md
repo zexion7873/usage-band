@@ -71,7 +71,9 @@ this one comes while there is still time to slow down.
 
 ### 🖥️ Desktop and terminal
 
-On the desktop each meter is a bar. Hover it for a card with its detail, which a
+On the desktop each meter is a bar. When the account has fewer windows (a
+verified Ultra plan has no `5h`, an API key has none), the bars that are left
+stretch into the room. Hover a bar for a card with its detail, which a
 screen reader also reads:
 
 - **`ctx`**: the compact point and the five largest context categories. Their

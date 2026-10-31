@@ -13,6 +13,45 @@ const LABELS: Record<string, string> = { five_hour: '5h', seven_day: 'wk', spend
 // Desktop row shares, in proportion to each block's widest likely content (`100%`, `199k/200k`, `+12%`, `6d23h`); they sum to 100.
 const ROW_SHARE: Record<string, string> = { ctx: '28%', five_hour: '30%', seven_day: '30%', cache: '12%' }
 const WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day: 7 * 86_400_000 }
+
+// The desktop reports its width in cells only; a cell measured ~7.65 CSS px at both 98 and 77 columns (2026-10-31).
+const CELL_PX = 7.65
+// Every character costs the widest one measured on the row (`%`, ~9.6 px): at an average 8.5, wk's figures drew 7 px past
+// their estimate and pushed cache off the row.
+const CHAR_PX = 9.6
+// One point of the row held back for what text cannot cost: the gaps between a block's children drew ~5 px, not half a cell.
+const SLACK_PCT = 1
+// Without a ceiling an account with no rate-limit windows would stretch ctx across the whole row.
+const BAR_MAX = 200
+
+type RowBlock = { key: string; label: string; figure: string; moved: string; detail: string }
+
+// A window the account lacks (5h on a verified Ultra plan, every window on an API key) leaves its share empty. The bars on
+// the row then grow alike into it, each block's minimum follows its estimate, and cache takes the rest so it still ends at
+// the right edge. A full set of shares, or no measured width, keeps every bar at BAR.width.
+const fit = (columns: number | undefined, blocks: RowBlock[], cacheText: string) => {
+  const shares = [...blocks.map(b => b.key), ...(cacheText ? ['cache'] : [])].map(k => parseFloat(own(ROW_SHARE, k) ?? '0'))
+  if (columns === undefined || shares.reduce((a, s) => a + s, 0) >= 100) return undefined
+  const row = columns * CELL_PX
+  const share = (key: string) => (row * parseFloat(own(ROW_SHARE, key) ?? '0')) / 100
+  // Text, the half-cell gaps between a block's children, and its half-cell padding: everything but the bar.
+  const content = blocks.map(b => {
+    const texts = [b.label, b.figure, b.moved, b.detail].filter(Boolean)
+    return texts.join('').length * CHAR_PX + texts.length * 0.5 * CELL_PX + 0.5 * CELL_PX
+  })
+  // Whole percents only: the engine drops a tree whose minWidth reads `45.9%`. Rounded up, so no block's content
+  // outgrows its minimum and pushes cache off the row; the epsilon keeps an exact share from rounding up a point.
+  const pct = (px: number) => Math.ceil((px / row) * 100 - 1e-9)
+  const cachePct = cacheText ? pct(Math.max(share('cache'), cacheText.length * CHAR_PX)) : 0
+  const pctsAt = (w: number) => blocks.map((b, i) => pct(Math.max(share(b.key), content[i]! + w)))
+  let bar = BAR_MAX
+  while (bar > BAR.width && pctsAt(bar).reduce((a, p) => a + p, 0) + cachePct > 100 - SLACK_PCT) bar--
+  if (bar === BAR.width) return undefined
+  const pcts = pctsAt(bar)
+  const minWidth: Record<string, string> = Object.fromEntries(blocks.map((b, i) => [b.key, `${pcts[i]}%`]))
+  minWidth.cache = `${100 - pcts.reduce((a, p) => a + p, 0)}%`
+  return { bar, minWidth }
+}
 // The engine's `kind` is an open string: a plain index by `constructor` reads Object.prototype's member.
 const own = <T,>(table: Record<string, T>, key: string) => (Object.hasOwn(table, key) ? table[key] : undefined)
 
@@ -359,14 +398,19 @@ export const register: Register = on => {
         </Box>
       </Box>
     )
+    const onRow = meters.filter(m => own(ROW_SHARE, m.key) !== undefined)
+    const sized = fit(e.viewport?.columns, onRow, cache || cost)
+    // Only the row's own blocks stretch; a window wrapped below keeps BAR.width.
+    const stretchedTo = (m: (typeof meters)[number]) => (sized && own(sized.minWidth, m.key) ? sized : undefined)
     const meterBox = (m: (typeof meters)[number]) => (
       // A minimum, not a width: content past its share widens the block and wraps the row rather than overlapping.
-      <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={own(ROW_SHARE, m.key)}>
+      // The padding sits inside that minimum (seen on the desktop), so it costs a full row nothing and parts a crowded one.
+      <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={stretchedTo(m)?.minWidth[m.key] ?? own(ROW_SHARE, m.key)} paddingRight={0.5}>
         <Text dimColor>{m.label}</Text>
         <Svg
-          source={bar(m.percent, m.marks)}
+          source={bar(m.percent, m.marks, stretchedTo(m)?.bar)}
           alt={[m.title, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}
-          width={BAR.width}
+          width={stretchedTo(m)?.bar ?? BAR.width}
           height={BAR.tick}
         />
         {/* Row figures change by themselves; with proportional digits every meter after one would shift. */}
@@ -392,10 +436,10 @@ export const register: Register = on => {
         {/* Without wrap a narrow pane (split view) squeezes the meters until their text overlaps.
             One wrap row: a nested one took a whole line once it overflowed, pushing the cost onto a line alone. */}
         <Box flexDirection="row" flexWrap="wrap" alignItems="center" columnGap={0} rowGap={1}>
-          {meters.filter(m => own(ROW_SHARE, m.key) !== undefined).map(meterBox)}
+          {onRow.map(meterBox)}
           {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
           {(cache || cost) && (
-            <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={ROW_SHARE.cache}>
+            <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={sized?.minWidth.cache ?? ROW_SHARE.cache}>
               <Text dimColor tabular>{cache || cost}</Text>
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
