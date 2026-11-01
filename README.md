@@ -60,7 +60,7 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 | ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. Once a window has moved since your last message, `+N%` beside its percent says how far, and the window's card on the desktop repeats it. The windows are the account's, so every session on it counts toward that step, not only this one. |
 | 💳 | **`spend`** | The spend limit, when the account has one. |
 | ♻️ | **`cache N%`** | Cache reads as a share of all input tokens in the last response. |
-| 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription this is not what you are billed — your plan counts against the `5h` / `wk` limits. On the desktop it is in the card that opens over `cache`, so the meters keep one row however large it grows. |
+| 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription the plan counts requests against the `5h` / `wk` limits or bills them as usage credits — fast mode does even with plan usage left — and only the credits are charged on top of the plan. On the desktop it is in the card that opens over `cache`, so the meters keep one row however large it grows. |
 
 Percent turns amber at 60% and red at 85%.
 

@@ -103,7 +103,7 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(await desktop.find({ type: 'Text', text: /^based on$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^API prices$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^on a plan$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^not billed$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^limits or credits$/ })).toBeDefined()
   // Lines that are always there read as plain text; a grey square marks one that comes and goes (the forecast here),
   // so the cost card has none. ctx's ranked categories keep their colours.
   const squares = (await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)
@@ -735,6 +735,43 @@ test('desktop band keeps the cost on the row while there is no cache figure to h
   expect(await desktop.find({ type: 'Text', text: /^\$1\.23$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^cost: / })).toBeUndefined()
   await desktop.unmount()
+})
+
+test('the cost card names a plan only for an account with a 5h or wk window', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const measure = (rateLimits: { kind: string; percentUsed: number; resetsAt: string }[]) =>
+    $.session.measure({
+      context: { tokens: 84000, window: 200000, percent: 42 },
+      rateLimits,
+      cost: { usd: 1.234 },
+      changed: ['context', 'rateLimits'],
+    })
+
+  await measure([])
+  const apiKey = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await apiKey.find({ type: 'Text', text: /^cost: \$1\.23$/ })).toBeDefined()
+  expect(await apiKey.find({ type: 'Text', text: /^based on$/ })).toBeDefined()
+  expect(await apiKey.find({ type: 'Text', text: /^on a plan$/ })).toBeUndefined()
+  await apiKey.unmount()
+
+  await measure([{ kind: 'spend_limit', percentUsed: 37, resetsAt: '2026-10-26T00:00:00Z' }])
+  const gateway = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await gateway.find({ type: 'Text', text: /^cost: \$1\.23$/ })).toBeDefined()
+  expect(await gateway.find({ type: 'Text', text: /^on a plan$/ })).toBeUndefined()
+  await gateway.unmount()
+
+  await measure([{ kind: 'five_hour', percentUsed: 12, resetsAt: '2026-10-06T03:20:00Z' }])
+  const fiveHour = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await fiveHour.find({ type: 'Text', text: /^on a plan$/ })).toBeDefined()
+  expect(await fiveHour.find({ type: 'Text', text: /^limits or credits$/ })).toBeDefined()
+  await fiveHour.unmount()
+
+  await measure([{ kind: 'seven_day', percentUsed: 21, resetsAt: '2026-10-08T21:00:00Z' }])
+  const ultra = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await ultra.find({ type: 'Text', text: /^on a plan$/ })).toBeDefined()
+  expect(await ultra.find({ type: 'Text', text: /^limits or credits$/ })).toBeDefined()
+  await ultra.unmount()
 })
 
 test('desktop band draws the figures on its row with digits of one width', async ($, on) => {

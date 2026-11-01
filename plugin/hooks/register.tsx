@@ -348,6 +348,8 @@ export const register: Register = on => {
     ]
     const cache = detail?.cacheHitPercent === undefined ? '' : `cache ${detail.cacheHitPercent}%`
     const cost = current.costUsd === undefined ? '' : `$${current.costUsd.toFixed(2)}`
+    // Only a 5h or wk reading says there is a plan: a gateway's lone spend_limit is none. Fast mode bills credits even on one.
+    const onPlan = current.rateLimits.some(l => AWAITED.includes(l.kind))
 
     if (e.surface === 'terminal') {
       const { Box, Text } = $.ui.resolve(e)
@@ -446,7 +448,7 @@ export const register: Register = on => {
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>
-                  {table([line('based on', 'API prices'), line('on a plan', 'not billed')])}
+                  {table([line('based on', 'API prices'), ...(onPlan ? [line('on a plan', 'limits or credits')] : [])])}
                 </Box>
               )}
             </Box>
