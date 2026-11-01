@@ -185,10 +185,10 @@ const withHistory = (limits: SessionRateLimit[], before: UsageBandLimit[] | unde
 const QUIET_MIN_MS = 10 * 60_000
 const QUIET_MAX_MS = 60 * 60_000
 
-// The step on show stays until a reading replaces it.
+// The step on show stays until a reading replaces it. A seeded reading (after /clear) has no date, so it is as stale as any.
 const withBase = (prev: UsageBand, now: number): UsageBand => {
   const idle = prev.readAt === undefined ? undefined : now - prev.readAt
-  const quiet = idle !== undefined && idle >= QUIET_MIN_MS && idle <= QUIET_MAX_MS
+  const quiet = idle === undefined ? prev.rateLimits.length > 0 : idle >= QUIET_MIN_MS && idle <= QUIET_MAX_MS
   return {
     ...prev,
     basePending: quiet,
@@ -318,7 +318,7 @@ export const register: Register = on => {
     const fill = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
     const now = await $.clock.now()
     await update($, usage, prev => prev && { ...withContext(prev, fill), readAt: now })
-    // Not at the turn's first measure: a one-response turn's first measure is its last, so its step would always read 0.
+    // Not at the turn's first measure: with no crossing mid-turn that is its end, and every response after the first would be lost.
     if ((await read($, usage))?.basePending) {
       const { rateLimits } = await $.session.usage()
       await update($, usage, prev => (prev?.basePending ? rebased(prev, rateLimits) : prev))

@@ -412,6 +412,7 @@ const liveEngine = (on: On) => {
     value: { startedAt: NOW, context: { tokens: 84000, window: 200000, percent: 42, breakdown: BREAKDOWN }, rateLimits: wk(live.wk) },
   }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('classic.SessionStart', () => ({}))
   on('turn.step', async function* (_, e) {
     const usage = { input_tokens: 1000, output_tokens: 500, cache_read_input_tokens: 70000, cache_creation_input_tokens: 13000, model: 'm' }
     return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage }
@@ -440,20 +441,57 @@ test("after a quiet stretch, +N% counts from your message's first response, not 
   const clock = mock.clock(on, { now: NOW })
   const { live, measure } = liveEngine(on)
   await measure($, 40)
-  // 20 min with no response here while another session spends 3 points.
+  // 20 min with no response here while another session spends 3 points; the first response reports 43.
   await clock.advance(20 * 60_000)
-  live.wk = 43
   await submit($, 'one line', 'composer')
-  // A crossing that lands before the first response has nothing to count from.
-  await measure($, 43)
+  live.wk = 43
+  await mainStep($)
+  // The turn's second response moves 2 more points and no crossing fires before the turn ends.
+  live.wk = 45
+  await mainStep($)
+  await measure($, 45)
+  expect(await steps($)).toEqual(['+2%', '+2%'])
+
+  // Another quiet 20 min, and this time a crossing lands before the first response: it has nothing to count from.
+  await clock.advance(20 * 60_000)
+  await submit($, 'again', 'composer')
+  await measure($, 47)
   expect(await steps($)).toEqual([])
+  live.wk = 47
+  await mainStep($)
+  await measure($, 47)
+  expect(await steps($)).toEqual([])
+})
+
+test('after /clear, /resume or /branch the reading carries no date, so your next message counts from its first response', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+  await clock.advance(5 * 60_000)
+  // The re-read holds this process's last reading, 40; other sessions have spent 3 since.
+  await $.classic.SessionStart({ source: 'clear' })
+  await submit($, 'new task', 'composer')
+  live.wk = 43
   await mainStep($)
   await measure($, 43)
   expect(await steps($)).toEqual([])
-  // This turn's own point still counts.
-  live.wk = 44
-  await measure($, 44)
-  expect(await steps($)).toEqual(['+1%', '+1%'])
+})
+
+test("a main-thread response dates the reading, so a message soon after it keeps today's base", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+  await submit($, 'go', 'composer')
+  // A response 15 min in with no crossing; the next message 5 min later is no quiet stretch.
+  await clock.advance(15 * 60_000)
+  live.wk = 40.6
+  await mainStep($)
+  await clock.advance(5 * 60_000)
+  await submit($, 'and', 'composer')
+  live.wk = 43
+  await mainStep($)
+  await measure($, 43)
+  expect(await steps($)).toEqual(['+3%', '+3%'])
 })
 
 test('a short pause, one past an hour, or a turn you did not start keeps the base at your message', async ($, on) => {
