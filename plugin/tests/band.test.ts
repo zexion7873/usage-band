@@ -119,6 +119,12 @@ test('a tick level with the fill, or on an empty bar, keeps its own colour', asy
   expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).not.toContain('#fff')
 })
 
+test('on the light theme a pace tick darkens, and nothing else changes colour', async () => {
+  const svg = bar(70, [{ percent: 40, color: '#9c9c9c' }, { percent: 90, color: '#c04742' }])
+  expect(svg).toContain('<style>@media (prefers-color-scheme: light){rect[fill="#9c9c9c"]{fill:#6b6b6b}}</style>')
+  expect(svg.match(/@media/g)).toHaveLength(1)
+})
+
 test('band keeps what the plugins beneath it drew', async ($, on) => {
   mock.clock(on, { now: NOW })
   on('session.measure', (_, e) => ({ changed: e.changed }))

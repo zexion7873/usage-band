@@ -139,7 +139,12 @@ Two more have no test yet:
 The desktop bar is an SVG image, so theme keys never reach it — `FILL` and the
 tick colours in `plugin/hooks/bar.ts` are literals sampled from the app's own
 usage panel. A tick the fill has passed turns white across the fill: that
-`#fff` is chosen for contrast, not sampled. The percent text beside it uses the
+`#fff` is chosen for contrast, not sampled. The image does follow the app's
+own light or dark setting through `prefers-color-scheme` (probed 2026-11-02:
+app Light over macOS Dark matched `light`), so a bar with a pace tick carries
+a fixed `<style>` that darkens it to `PACE_TICK_LIGHT` on light, chosen to keep
+the dark theme's contrast on the sampled light track, not sampled.
+`rsvg-convert` ignores the rule, so the PNGs stay as they are. The percent text beside it uses the
 theme keys `warning` / `error`. The `ctx` hover card's category squares are literals too
 (`CONTEXT_SWATCH` in `plugin/hooks/register.tsx`), sampled from the desktop
 `/context` panel, which colours categories by rank — the four largest blue,

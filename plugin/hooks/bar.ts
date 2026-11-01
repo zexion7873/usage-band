@@ -4,6 +4,8 @@ export const tone = (percent: number) => (percent >= 85 ? 'over' : percent >= 60
 // The bar is drawn as an image: theme keys don't reach it, so colors are literal (sampled from the app's usage panel).
 const FILL = { calm: '#4177d0', hot: '#bf882e', over: '#c04742' } as const
 export const PACE_TICK = '#9c9c9c'
+// The image does follow the app's light theme: there the sampled grey falls to 1.9:1 on the track, this keeps dark's 3.6:1.
+const PACE_TICK_LIGHT = '#6b6b6b'
 export const COMPACT_TICK = '#c04742'
 // Three bars share the 768 px desktop row with the +N% steps: past 60 the widest likely figures wrap it.
 export const BAR = { width: 60, height: 8, tick: 12 }
@@ -23,5 +25,8 @@ const tick = (percent: number, color: string, fill: number, width: number) => {
 export const bar = (percent: number, marks: { percent: number; color: string }[], width = BAR.width) => {
   const r = BAR.height / 2
   const y = (BAR.tick - BAR.height) / 2
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${BAR.tick}"><rect y="${y}" width="${width}" height="${BAR.height}" rx="${r}" fill="#888" fill-opacity="0.25"/><rect y="${y}" width="${at(percent, width)}" height="${BAR.height}" rx="${r}" fill="${FILL[tone(percent)]}"/>${marks.map(m => tick(m.percent, m.color, percent, width)).join('')}</svg>`
+  const light = marks.some(m => m.color === PACE_TICK)
+    ? `<style>@media (prefers-color-scheme: light){rect[fill="${PACE_TICK}"]{fill:${PACE_TICK_LIGHT}}}</style>`
+    : ''
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${BAR.tick}">${light}<rect y="${y}" width="${width}" height="${BAR.height}" rx="${r}" fill="#888" fill-opacity="0.25"/><rect y="${y}" width="${at(percent, width)}" height="${BAR.height}" rx="${r}" fill="${FILL[tone(percent)]}"/>${marks.map(m => tick(m.percent, m.color, percent, width)).join('')}</svg>`
 }
