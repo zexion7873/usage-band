@@ -719,6 +719,26 @@ test('desktop band keeps ctx, 5h, wk and cache on the first row and wraps any ot
   await desktop.unmount()
 })
 
+test('a reset more than a week away names its date, where a weekday would repeat', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [
+      { kind: 'seven_day', percentUsed: 21, resetsAt: '2026-10-13T00:00:00Z' },
+      { kind: 'spend_limit', percentUsed: 37, resetsAt: '2026-10-26T00:00:00Z' },
+    ],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const [, wk, spend] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
+  // The reset clock is the machine's local time, so only its shape is pinned.
+  expect(wk).toMatch(/ · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/)
+  expect(spend).toMatch(/^spend: 37% used · reset: (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2} \d\d:\d\d$/)
+  await desktop.unmount()
+})
+
 test('desktop band keeps the cost on the row while there is no cache figure to hang its card on', async ($, on) => {
   mock.clock(on, { now: NOW })
   on('session.measure', (_, e) => ({ changed: e.changed }))

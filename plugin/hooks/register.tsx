@@ -64,6 +64,7 @@ const CONTEXT_SWATCH = ['#3987e5', '#d95926', '#189e71', '#c98502']
 const CONTEXT_SWATCH_REST = '#97958d'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 // Under this share of the window elapsed, a straight-line forecast swings on every response.
 const MIN_FORECAST_PCT = 10
 
@@ -79,10 +80,12 @@ const untilReset = (resetsAt: string | undefined, now: number) =>
 
 const clockTime = (at: Date) => `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
 
-// Local time of the reset; the weekday only when it is a day or more away.
+// Local time of the reset; the weekday only when it is a day or more away, the date past a week, where a weekday repeats.
 const resetClock = (resetsAt: string, now: number) => {
   const at = new Date(resetsAt)
-  return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
+  const away = at.getTime() - now
+  if (away > 7 * 86_400_000) return `${MONTHS[at.getMonth()]} ${at.getDate()} ${clockTime(at)}`
+  return away >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
 }
 
 // A card draws the name left and the value at its right edge; `alt` reads the two joined as `text`.
