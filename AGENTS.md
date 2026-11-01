@@ -84,14 +84,14 @@ reds one is a change in behaviour, not a test to update.
   last measure: one also fires whenever a window crosses a whole point, and
   readings come whole, so the turn's final step was always 0. Not from
   `turn.start`: a background agent's report starts a main turn of its own (its
-  submission's origin is `peer`). When that reading is 10 to 60 min old
+  submission's origin is `peer`). When that reading is 10 min old or more
   (`readAt`, stamped by each measure and main-thread step; subagent steps
   skip it to spare the band a redraw each), or undated because `seed` wrote
-  it, the submit drops the base instead and the turn's first priced
+  it, the submit drops each such window's base and the turn's first priced
   main-thread `turn.step` takes it from `$.session.usage()`, so other
-  sessions' spend before your message stays out. Past an hour the first
-  response re-sends the context uncached, the message's own spend, so the old
-  reading stays. The desktop shows the
+  sessions' spend before your message stays out. 5h alone stops at an hour
+  (`QUIET_MAX_MS`): past it the first response re-sends the context uncached,
+  the message's own spend, which can be whole 5h points. The desktop shows the
   step on the row as well as in the card. That row fits one line in a
   default-width pane only with `BAR.width` at 60, half-cell gaps inside each
   meter, and the cost moved into cache's card: the cost grows without bound,

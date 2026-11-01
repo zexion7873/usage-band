@@ -405,11 +405,18 @@ test('a burst that a reset interrupts starts over, and a spend limit gets a spee
 
 // usage() answers the account's live reading: what this process's latest response reported.
 const liveEngine = (on: On) => {
-  const live = { wk: 40 }
-  const wk = (percentUsed: number) => [{ kind: 'seven_day', percentUsed, resetsAt: '2026-10-08T21:00:00Z' }]
+  const live = { wk: 40, fiveHour: 10 }
+  const limits = (wk: number, fiveHour: number) => [
+    { kind: 'five_hour', percentUsed: fiveHour, resetsAt: '2026-10-06T03:20:00Z' },
+    { kind: 'seven_day', percentUsed: wk, resetsAt: '2026-10-08T21:00:00Z' },
+  ]
   on('session.measure', (_, e) => ({ changed: e.changed }))
   on('session.usage', () => ({
-    value: { startedAt: NOW, context: { tokens: 84000, window: 200000, percent: 42, breakdown: BREAKDOWN }, rateLimits: wk(live.wk) },
+    value: {
+      startedAt: NOW,
+      context: { tokens: 84000, window: 200000, percent: 42, breakdown: BREAKDOWN },
+      rateLimits: limits(live.wk, live.fiveHour),
+    },
   }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('classic.SessionStart', () => ({}))
@@ -420,8 +427,12 @@ const liveEngine = (on: On) => {
   on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
   return {
     live,
-    measure: ($: Engine, percentUsed: number) =>
-      $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: wk(percentUsed), changed: ['rateLimits'] }),
+    measure: ($: Engine, wk: number, fiveHour = live.fiveHour) =>
+      $.session.measure({
+        context: { tokens: 84000, window: 200000, percent: 42 },
+        rateLimits: limits(wk, fiveHour),
+        changed: ['rateLimits'],
+      }),
   }
 }
 
@@ -494,7 +505,7 @@ test("a main-thread response dates the reading, so a message soon after it keeps
   expect(await steps($)).toEqual(['+3%', '+3%'])
 })
 
-test('a short pause, one past an hour, or a turn you did not start keeps the base at your message', async ($, on) => {
+test('a short pause, or a turn you did not start, keeps the base at your message', async ($, on) => {
   const clock = mock.clock(on, { now: NOW })
   const { live, measure } = liveEngine(on)
   await measure($, 40)
@@ -507,21 +518,27 @@ test('a short pause, one past an hour, or a turn you did not start keeps the bas
   await measure($, 43)
   expect(await steps($)).toEqual(['+3%', '+3%'])
 
-  // Past an hour the first response re-sends the context uncached: that spend is the message's own.
-  await clock.advance(70 * 60_000)
-  live.wk = 46
-  await submit($, 'back', 'sdk')
-  await mainStep($)
-  await measure($, 46)
-  expect(await steps($)).toEqual(['+3%', '+3%'])
-
   // A background agent's report after 20 quiet minutes: the step still counts from your message.
   await clock.advance(20 * 60_000)
-  live.wk = 48
+  live.wk = 45
   await submit($, '<agent-message from="a1">', 'task-notification')
   await mainStep($)
-  await measure($, 48)
+  await measure($, 45)
   expect(await steps($)).toEqual(['+5%', '+5%'])
+})
+
+test("past an hour 5h keeps the base at your message, its first response being the message's own re-send; wk does not", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40, 10)
+  await clock.advance(70 * 60_000)
+  await submit($, 'back', 'sdk')
+  // Other sessions moved wk 3 points meanwhile; the uncached re-send moves 5h 2.
+  live.wk = 43
+  live.fiveHour = 12
+  await mainStep($)
+  await measure($, 43, 12)
+  expect(await steps($)).toEqual(['+2%', '+2%'])
 })
 
 test('a window that reset since your last message shows no change from the old one', async ($, on) => {

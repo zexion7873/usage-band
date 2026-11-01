@@ -180,26 +180,24 @@ const withHistory = (limits: SessionRateLimit[], before: UsageBandLimit[] | unde
     }
   })
 
-// A reading 10 to 60 min old misses what other sessions spent since, so your message's first response reads the base.
-// Past an hour that response re-sends the context uncached, spend of the message's own: the old reading stays the base.
+// A reading 10 min old or more misses what other sessions spent since, so your message's first response reads the base.
+// 5h only: past an hour that response re-sends the context uncached, the message's own spend, and can be whole 5h points.
 const QUIET_MIN_MS = 10 * 60_000
-const QUIET_MAX_MS = 60 * 60_000
+const QUIET_MAX_MS: Record<string, number> = { five_hour: 60 * 60_000 }
 
 // The step on show stays until a reading replaces it. A seeded reading (after /clear) has no date, so it is as stale as any.
 const withBase = (prev: UsageBand, now: number): UsageBand => {
   const idle = prev.readAt === undefined ? undefined : now - prev.readAt
-  const quiet = idle === undefined ? prev.rateLimits.length > 0 : idle >= QUIET_MIN_MS && idle <= QUIET_MAX_MS
-  return {
-    ...prev,
-    basePending: quiet,
-    rateLimits: prev.rateLimits.map(({ base, ...l }) => (quiet ? l : { ...l, base: l.percentUsed })),
-  }
+  const quiet = (kind: string) => idle === undefined || (idle >= QUIET_MIN_MS && idle <= (own(QUIET_MAX_MS, kind) ?? Infinity))
+  const rateLimits: UsageBandLimit[] = prev.rateLimits.map(({ base, ...l }) => (quiet(l.kind) ? l : { ...l, base: l.percentUsed }))
+  return { ...prev, basePending: rateLimits.some(l => l.base === undefined), rateLimits }
 }
 
 const rebased = (prev: UsageBand, readings: SessionRateLimit[]): UsageBand => ({
   ...prev,
   basePending: false,
   rateLimits: prev.rateLimits.map(l => {
+    if (l.base !== undefined) return l
     const base = readings.find(r => r.kind === l.kind && r.resetsAt === l.resetsAt)?.percentUsed ?? l.percentUsed
     return { ...l, base, delta: 0 }
   }),
