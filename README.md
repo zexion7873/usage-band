@@ -83,9 +83,10 @@ screen reader also reads:
   category's colour differs too. In every card, a line that comes and goes
   opens with a grey square, so a coloured one always marks a rank.
 - **A rate-limit window**: how much of the window has elapsed and the local
-  time it resets; then, when they apply, where it ends up if the rest of it
-  burns at the rate so far — in amber when that runs it out before the reset —
-  and how far it moved since your last message.
+  time it resets (its date, when that is more than a week away); then, when
+  they apply, where it ends up if the rest of it burns at the rate so far — in
+  amber when that runs it out before the reset — and how far it moved since
+  your last message.
 
 The terminal draws the headline figures as one line of text:
 
