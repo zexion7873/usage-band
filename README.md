@@ -57,7 +57,7 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 |   | Item | Meaning |
 |:-:|------|---------|
 | 🧠 | **`ctx`** | Context window fill, `tokens/window` beside it. A red tick marks where auto-compact triggers, white where the fill has passed it. |
-| ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. Once a window has moved since your last message, `+N%` beside its percent says how far, and the window's card on the desktop repeats it. The windows are the account's, so every session on it counts toward that step, not only this one. |
+| ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. Once a window has moved since your last message, `+N%` beside its percent says how far, and the window's card on the desktop repeats it. The windows are the account's, so every session on it counts toward that step, not only this one — except after 10 to 60 minutes with no response in this session, when the step counts from your message's first response, leaving out what was spent before you wrote. |
 | 💳 | **`spend`** | The spend limit, when the account has one. |
 | ♻️ | **`cache N%`** | Cache reads as a share of all input tokens in the last response. |
 | 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription the plan counts requests against the `5h` / `wk` limits or bills them as usage credits — fast mode does even with plan usage left — and only the credits are charged on top of the plan. On the desktop it is in the card that opens over `cache`, so the meters keep one row however large it grows. |
@@ -160,8 +160,9 @@ writes no files, opens no ports, and makes no network requests or model calls �
 
 Every hook hands its event on unchanged. `classic.SessionStart` (after
 `/clear`, `/resume` and `/branch`) only re-reads the usage, and
-`prompt.submit` only notes each window's reading as the base for `+N%` —
-neither adds context nor touches your prompt.
+`prompt.submit` only notes each window's reading as the base for `+N%` (after
+a quiet stretch, `turn.step` takes it from your message's first response) —
+none of them adds context or touches your prompt.
 
 ---
 

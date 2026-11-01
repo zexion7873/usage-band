@@ -331,6 +331,89 @@ test('a burst that a reset interrupts starts over, and a spend limit gets a spee
   expect(await spendAlt()).not.toContain('at this speed')
 })
 
+// usage() answers the account's live reading: what this process's latest response reported.
+const liveEngine = (on: On) => {
+  const live = { wk: 40 }
+  const wk = (percentUsed: number) => [{ kind: 'seven_day', percentUsed, resetsAt: '2026-10-08T21:00:00Z' }]
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({
+    value: { startedAt: NOW, context: { tokens: 84000, window: 200000, percent: 42, breakdown: BREAKDOWN }, rateLimits: wk(live.wk) },
+  }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('turn.step', async function* (_, e) {
+    const usage = { input_tokens: 1000, output_tokens: 500, cache_read_input_tokens: 70000, cache_creation_input_tokens: 13000, model: 'm' }
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage }
+  })
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  return {
+    live,
+    measure: ($: Engine, percentUsed: number) =>
+      $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: wk(percentUsed), changed: ['rateLimits'] }),
+  }
+}
+
+const mainStep = async ($: Engine) => {
+  const stream = $.turn.step({ turnId: 't', index: 0, model: 'm', messageCount: 3 })
+  for await (const _ of stream);
+}
+
+const steps = async ($: Engine) => {
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const shown = (await ui.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)
+  await ui.unmount()
+  return shown
+}
+
+test("after a quiet stretch, +N% counts from your message's first response, not from before other sessions spent", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+  // 20 min with no response here while another session spends 3 points.
+  await clock.advance(20 * 60_000)
+  live.wk = 43
+  await submit($, 'one line', 'composer')
+  // A crossing that lands before the first response has nothing to count from.
+  await measure($, 43)
+  expect(await steps($)).toEqual([])
+  await mainStep($)
+  await measure($, 43)
+  expect(await steps($)).toEqual([])
+  // This turn's own point still counts.
+  live.wk = 44
+  await measure($, 44)
+  expect(await steps($)).toEqual(['+1%', '+1%'])
+})
+
+test('a short pause, one past an hour, or a turn you did not start keeps the base at your message', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+
+  // Under 10 min.
+  await clock.advance(5 * 60_000)
+  live.wk = 43
+  await submit($, 'go', 'composer')
+  await mainStep($)
+  await measure($, 43)
+  expect(await steps($)).toEqual(['+3%', '+3%'])
+
+  // Past an hour the first response re-sends the context uncached: that spend is the message's own.
+  await clock.advance(70 * 60_000)
+  live.wk = 46
+  await submit($, 'back', 'sdk')
+  await mainStep($)
+  await measure($, 46)
+  expect(await steps($)).toEqual(['+3%', '+3%'])
+
+  // A background agent's report after 20 quiet minutes: the step still counts from your message.
+  await clock.advance(20 * 60_000)
+  live.wk = 48
+  await submit($, '<agent-message from="a1">', 'task-notification')
+  await mainStep($)
+  await measure($, 48)
+  expect(await steps($)).toEqual(['+5%', '+5%'])
+})
+
 test('a window that reset since your last message shows no change from the old one', async ($, on) => {
   const clock = mock.clock(on, { now: NOW })
   engine(on)

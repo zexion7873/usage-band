@@ -23,6 +23,8 @@ export type UsageBand = {
   contextWindow: number
   rateLimits: UsageBandLimit[]
   limitsPending?: boolean
+  readAt?: number
+  basePending?: boolean
   costUsd?: number
   detail?: UsageBandDetail
 }

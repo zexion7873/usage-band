@@ -178,6 +178,31 @@ const withHistory = (limits: SessionRateLimit[], before: UsageBandLimit[] | unde
     }
   })
 
+// A reading 10 to 60 min old misses what other sessions spent since, so your message's first response reads the base.
+// Past an hour that response re-sends the context uncached, spend of the message's own: the old reading stays the base.
+const QUIET_MIN_MS = 10 * 60_000
+const QUIET_MAX_MS = 60 * 60_000
+
+// The step on show stays until a reading replaces it.
+const withBase = (prev: UsageBand, now: number): UsageBand => {
+  const idle = prev.readAt === undefined ? undefined : now - prev.readAt
+  const quiet = idle !== undefined && idle >= QUIET_MIN_MS && idle <= QUIET_MAX_MS
+  return {
+    ...prev,
+    basePending: quiet,
+    rateLimits: prev.rateLimits.map(({ base, ...l }) => (quiet ? l : { ...l, base: l.percentUsed })),
+  }
+}
+
+const rebased = (prev: UsageBand, readings: SessionRateLimit[]): UsageBand => ({
+  ...prev,
+  basePending: false,
+  rateLimits: prev.rateLimits.map(l => {
+    const base = readings.find(r => r.kind === l.kind && r.resetsAt === l.resetsAt)?.percentUsed ?? l.percentUsed
+    return { ...l, base, delta: 0 }
+  }),
+})
+
 const snapshot = (
   context: SessionContextUsage,
   rateLimits: UsageBandLimit[],
@@ -226,7 +251,11 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     const now = await $.clock.now()
-    await update($, usage, prev => snapshot(e.context, withHistory(e.rateLimits, prev?.rateLimits, now), e.cost, prev?.detail))
+    await update($, usage, prev => ({
+      ...snapshot(e.context, withHistory(e.rateLimits, prev?.rateLimits, now), e.cost, prev?.detail),
+      readAt: now,
+      basePending: prev?.basePending ?? false,
+    }))
     // Second write so a failed breakdown leaves the headline figures current.
     if (e.changed.includes('context')) {
       const { context } = await $.session.usage({ breakdown: 'summary' })
@@ -251,8 +280,10 @@ export const register: Register = on => {
 
   // Not at turn.start: a background agent's report starts a main turn of its own, which would reset the step to 0.
   on('prompt.submit', async ($, e, next) => {
-    if (YOUR_MESSAGE.has(e.origin.kind))
-      await update($, usage, prev => prev && { ...prev, rateLimits: prev.rateLimits.map(l => ({ ...l, base: l.percentUsed })) })
+    if (YOUR_MESSAGE.has(e.origin.kind)) {
+      const now = await $.clock.now()
+      await update($, usage, prev => prev && withBase(prev, now))
+    }
     return next(e)
   })
 
@@ -283,7 +314,13 @@ export const register: Register = on => {
     const u = result.usage
     if (u === null || e.agentId !== undefined) return result
     const fill = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
-    await update($, usage, prev => prev && withContext(prev, fill))
+    const now = await $.clock.now()
+    await update($, usage, prev => prev && { ...withContext(prev, fill), readAt: now })
+    // Not at the turn's first measure: a one-response turn's first measure is its last, so its step would always read 0.
+    if ((await read($, usage))?.basePending) {
+      const { rateLimits } = await $.session.usage()
+      await update($, usage, prev => (prev?.basePending ? rebased(prev, rateLimits) : prev))
+    }
     return result
   })
 
