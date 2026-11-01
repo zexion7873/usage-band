@@ -110,6 +110,14 @@ reds one is a change in behaviour, not a test to update.
   `update` retries on a version miss, and a `read` before it lets two
   overlapping measures both toast. `$.ui.notify` is no substitute: on the
   desktop it answers `no-surface` and shows nothing.
+- **Time a burst by its rises, and only in the card.** A measure fires at every
+  whole-point crossing, so each rise over the previous reading of the same
+  `kind@resetsAt` is logged in the limit's `rises` with `$.clock.now()`; a
+  session's first reading is no rise, since when it was reached is unknown. A
+  window card draws `at this speed: ~Xh left` from the newest run of three or
+  more rises spanning ten minutes or longer, no gap past `BURST_GAP_MS`, and
+  drops it once the last rise is older than that gap. It never colours a meter
+  or raises a toast: on a 168 h window every fan-out would trip it.
 
 Two more have no test yet:
 

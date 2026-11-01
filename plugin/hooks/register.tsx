@@ -110,6 +110,27 @@ const forecast = (limit: SessionRateLimit, now: number) => {
   return p.atReset < 100 ? line('at reset', `~${Math.round(p.atReset)}%`) : line('runs out', `in ~${duration(p.runsOutIn)}`, true)
 }
 
+// A longer gap between rises ends a burst: under load 5h moves a point every few minutes, wk and spend far slower.
+const BURST_GAP_MS: Record<string, number> = { five_hour: 15 * 60_000 }
+const BURST_GAP_DEFAULT_MS = 60 * 60_000
+const BURST_MIN_MS = 10 * 60_000
+const RISES_KEPT = 16
+
+// How long the rest lasts at the speed of the latest burst: three or more rises, over ten minutes or longer.
+// The straight-line forecast averages the whole window, so a late burst barely moves it.
+const atThisSpeed = (limit: UsageBandLimit, now: number) => {
+  const rises = limit.rises ?? []
+  const gap = own(BURST_GAP_MS, limit.kind) ?? BURST_GAP_DEFAULT_MS
+  const last = rises.at(-1)
+  if (last === undefined || limit.percentUsed >= 100 || now - last.at > gap) return undefined
+  let first = rises.length - 1
+  while (first > 0 && rises[first]!.at - rises[first - 1]!.at <= gap) first--
+  const start = rises[first]!
+  if (rises.length - first < 3 || last.at - start.at < BURST_MIN_MS) return undefined
+  const perMs = (last.pct - start.pct) / (last.at - start.at)
+  return perMs > 0 ? transient(line('at this speed', `~${duration((100 - limit.percentUsed) / perMs)} left`)) : undefined
+}
+
 // Share of the window already elapsed: usage above it is ahead of an even burn.
 const pace = (limit: SessionRateLimit, now: number) => {
   const span = own(WINDOW_MS, limit.kind)
@@ -143,11 +164,18 @@ const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number
 const YOUR_MESSAGE = new Set(['composer', 'bridge', 'sdk'])
 
 // From the reading at your last message: a measure also fires each time a window crosses a whole point mid-turn.
-// A window that reset since then has no step from it to show.
-const withDeltas = (limits: SessionRateLimit[], before: UsageBandLimit[] | undefined): UsageBandLimit[] =>
+// That makes each rise over the previous reading a crossing, timed by `now`. A window that reset since has neither.
+const withHistory = (limits: SessionRateLimit[], before: UsageBandLimit[] | undefined, now: number): UsageBandLimit[] =>
   limits.map(limit => {
-    const base = before?.find(b => b.kind === limit.kind && b.resetsAt === limit.resetsAt)?.base
-    return base === undefined ? limit : { ...limit, base, delta: limit.percentUsed - base }
+    const prev = before?.find(b => b.kind === limit.kind && b.resetsAt === limit.resetsAt)
+    if (prev === undefined) return limit
+    const rises =
+      limit.percentUsed > prev.percentUsed ? [...(prev.rises ?? []), { pct: limit.percentUsed, at: now }].slice(-RISES_KEPT) : prev.rises
+    return {
+      ...limit,
+      ...(prev.base === undefined ? {} : { base: prev.base, delta: limit.percentUsed - prev.base }),
+      ...(rises === undefined ? {} : { rises }),
+    }
   })
 
 const snapshot = (
@@ -197,7 +225,8 @@ export const register: Register = on => {
   })
 
   on('session.measure', async ($, e, next) => {
-    await update($, usage, prev => snapshot(e.context, withDeltas(e.rateLimits, prev?.rateLimits), e.cost, prev?.detail))
+    const now = await $.clock.now()
+    await update($, usage, prev => snapshot(e.context, withHistory(e.rateLimits, prev?.rateLimits, now), e.cost, prev?.detail))
     // Second write so a failed breakdown leaves the headline figures current.
     if (e.changed.includes('context')) {
       const { context } = await $.session.usage({ breakdown: 'summary' })
@@ -205,7 +234,6 @@ export const register: Register = on => {
       await update($, usage, prev => prev && { ...prev, detail })
     }
     // The CLI warns near a limit, not ahead of it: this says so while there is still time to slow down.
-    const now = await $.clock.now()
     for (const limit of e.rateLimits) {
       const p = projection(limit, now)
       const key = `${limit.kind}@${limit.resetsAt}`
@@ -308,6 +336,7 @@ export const register: Register = on => {
         const reset = untilReset(limit.resetsAt, now)
         const paceAt = pace(limit, now)
         const ahead = forecast(limit, now)
+        const speed = atThisSpeed(limit, now)
         // The engine reports one decimal; the CLI's own notice floors it, and floor never shows 100% early.
         const used = Math.floor(limit.percentUsed)
         // Readings come whole (seen on 2.1.300) or with a decimal; a whole step reads +1%, not +1.0%.
@@ -327,6 +356,7 @@ export const register: Register = on => {
             ...(limit.resetsAt === undefined ? [] : [line('reset', resetClock(limit.resetsAt, now))]),
             // Absent early in a window; the step changes with every message, so it goes last.
             ...(ahead === undefined ? [] : [transient(ahead)]),
+            ...(speed === undefined ? [] : [speed]),
             ...(moved === '' ? [] : [transient(line('since last message', moved))]),
           ],
           parts: [],

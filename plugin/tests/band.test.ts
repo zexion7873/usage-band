@@ -260,6 +260,77 @@ test('a rate-limit window shows how far it moved since your last message, until 
   await terminal.unmount()
 })
 
+test("a window's card says how long the rest lasts at the speed of a burst, and only while it lasts", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  const alt = async () => {
+    const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+    const [, fiveHour] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
+    await desktop.unmount()
+    return fiveHour
+  }
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  // Three rises four minutes apart span eight minutes: too short to call a speed.
+  for (const pct of [13, 14, 15]) {
+    await clock.advance(4 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await alt()).not.toContain('at this speed')
+
+  // Rises at 4, 8, 12 and 16 min: 3 points in 12 min, so the 84 left last 336 min.
+  await clock.advance(4 * 60_000)
+  await measureFiveHour($, 16, '2026-10-06T03:20:00Z')
+  expect(await alt()).toMatch(/^5h: 16% used · time passed: 39% · reset: \d\d:\d\d · at reset: ~41% · at this speed: ~5h36m left$/)
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^at this speed$/ })).toBeDefined()
+  expect((await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)).toContain('#97958d')
+  await desktop.unmount()
+
+  // 16 min with no rise ends a 5h burst; a rise after that gap starts a new one.
+  await clock.advance(16 * 60_000)
+  expect(await alt()).not.toContain('at this speed')
+  await clock.advance(4 * 60_000)
+  await measureFiveHour($, 17, '2026-10-06T03:20:00Z')
+  expect(await alt()).not.toContain('at this speed')
+})
+
+test('a burst that a reset interrupts starts over, and a spend limit gets a speed too', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  for (const pct of [12, 13, 14, 15, 16]) {
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+    await clock.advance(5 * 60_000)
+  }
+  await measureFiveHour($, 1, '2026-10-06T05:25:00Z')
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await desktop.findAll({ type: 'Svg' }))[1]?.props.alt).not.toContain('at this speed')
+  await desktop.unmount()
+
+  // A spend limit has no span, so no forecast; its rises at 20, 40 and 60 min still give 4 points in 40 min.
+  const spend = (percentUsed: number) =>
+    $.session.measure({
+      context: { tokens: 84000, window: 200000, percent: 42 },
+      rateLimits: [{ kind: 'spend_limit', percentUsed, resetsAt: '2026-10-26T00:00:00Z' }],
+      changed: ['context', 'rateLimits'],
+    })
+  await spend(10)
+  for (const pct of [12, 14, 16]) {
+    await clock.advance(20 * 60_000)
+    await spend(pct)
+  }
+  const spendAlt = async () => {
+    const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+    const [, alt] = (await ui.findAll({ type: 'Svg' })).map(s => s.props.alt)
+    await ui.unmount()
+    return alt
+  }
+  expect(await spendAlt()).toMatch(/^spend: 16% used · reset: [A-Z][a-z]{2} \d{1,2} \d\d:\d\d · at this speed: ~14h0m left$/)
+  // Past its limit there is nothing left to last.
+  await clock.advance(10 * 60_000)
+  await spend(100)
+  expect(await spendAlt()).not.toContain('at this speed')
+})
+
 test('a window that reset since your last message shows no change from the old one', async ($, on) => {
   const clock = mock.clock(on, { now: NOW })
   engine(on)
