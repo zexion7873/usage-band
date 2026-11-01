@@ -263,6 +263,11 @@ test('a rate-limit window shows how far it moved since your last message, until 
 test("a window's card says how long the rest lasts at the speed of a burst, and only while it lasts", async ($, on) => {
   const clock = mock.clock(on, { now: NOW })
   engine(on)
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
   const alt = async () => {
     const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
     const [, fiveHour] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
@@ -282,16 +287,75 @@ test("a window's card says how long the rest lasts at the speed of a burst, and 
   await measureFiveHour($, 16, '2026-10-06T03:20:00Z')
   expect(await alt()).toMatch(/^5h: 16% used · time passed: 39% · reset: \d\d:\d\d · at reset: ~41% · at this speed: ~5h36m left$/)
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect(await desktop.find({ type: 'Text', text: /^at this speed$/ })).toBeDefined()
-  expect((await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)).toContain('#97958d')
+  expect((await desktop.find({ type: 'Text', text: /^at this speed$/ }))?.props.color).toBeUndefined()
+  // A grey square each for 5h's forecast, 5h's speed and wk's run-out, after ctx's two ranks.
+  const grey = '#97958d'
+  expect((await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)).toEqual(['#3987e5', '#d95926', grey, grey, grey])
+  // In the card only: the meter keeps its calm colour, the terminal line its figures, and only wk's run-out toasts.
+  expect((await desktop.find({ type: 'Text', text: /^16%$/ }))?.props.dimColor).toBe(true)
   await desktop.unmount()
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx 42% (84k/200k) · 5h 16% (3h4m) · wk 89% (2d20h) · cache 83%'])
+  await terminal.unmount()
+  expect(toasts.filter(t => !t.startsWith('wk '))).toEqual([])
 
-  // 16 min with no rise ends a 5h burst; a rise after that gap starts a new one.
-  await clock.advance(16 * 60_000)
+  // Within the gap the figure holds; 16 min with no rise ends a 5h burst, and a rise after that starts a new one.
+  await clock.advance(5 * 60_000)
+  expect(await alt()).toContain('at this speed: ~5h36m left')
+  await clock.advance(11 * 60_000)
   expect(await alt()).not.toContain('at this speed')
   await clock.advance(4 * 60_000)
   await measureFiveHour($, 17, '2026-10-06T03:20:00Z')
   expect(await alt()).not.toContain('at this speed')
+})
+
+const fiveHourCard = async ($: Engine) => {
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const [, fiveHour] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
+  await desktop.unmount()
+  return fiveHour
+}
+
+test('a burst is a chain of rises each close to the one before; two rises are not one', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  for (const pct of [13, 14]) {
+    await clock.advance(12 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await fiveHourCard($)).not.toContain('at this speed')
+  // Rises at 12, 24, 36 and 48 min: the chain spans 36 min for 3 points, so the 84 left last 1008 min.
+  for (const pct of [15, 16]) {
+    await clock.advance(12 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await fiveHourCard($)).toContain('at this speed: ~16h48m left')
+})
+
+test('the speed reads the newest 16 rises, and a rise of tenths is no rise', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  // 13 to 28 every 4 min, then 29 and 30 a minute apart: the kept 16 run from 15 at 12 min to 30 at 66 min,
+  // 15 points in 54 min, so the 70 left last 252 min.
+  for (let pct = 13; pct <= 28; pct++) {
+    await clock.advance(4 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  for (const pct of [29, 30]) {
+    await clock.advance(60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await fiveHourCard($)).toContain('at this speed: ~4h12m left')
+
+  // A new window whose turn ends read 2.1, 2.4, 2.7 and 2.9 a few minutes apart never passed a whole point.
+  await measureFiveHour($, 2, '2026-10-06T05:25:00Z')
+  for (const pct of [2.1, 2.4, 2.7, 2.9]) {
+    await clock.advance(5 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T05:25:00Z')
+  }
+  expect(await fiveHourCard($)).not.toContain('at this speed')
 })
 
 test('a burst that a reset interrupts starts over, and a spend limit gets a speed too', async ($, on) => {
@@ -325,9 +389,17 @@ test('a burst that a reset interrupts starts over, and a spend limit gets a spee
     return alt
   }
   expect(await spendAlt()).toMatch(/^spend: 16% used · reset: [A-Z][a-z]{2} \d{1,2} \d\d:\d\d · at this speed: ~14h0m left$/)
-  // Past its limit there is nothing left to last.
-  await clock.advance(10 * 60_000)
-  await spend(100)
+  // Its burst holds for an hour without a rise, then ends.
+  await clock.advance(59 * 60_000)
+  expect(await spendAlt()).toContain('at this speed: ~14h0m left')
+  await clock.advance(2 * 60_000)
+  expect(await spendAlt()).not.toContain('at this speed')
+
+  // A new burst that reaches the limit has nothing left to last.
+  for (const pct of [18, 20, 100]) {
+    await spend(pct)
+    await clock.advance(20 * 60_000)
+  }
   expect(await spendAlt()).not.toContain('at this speed')
 })
 
@@ -880,16 +952,17 @@ test('a reset more than a week away names its date, where a weekday would repeat
     context: { tokens: 84000, window: 200000, percent: 42 },
     rateLimits: [
       { kind: 'seven_day', percentUsed: 21, resetsAt: '2026-10-13T00:00:00Z' },
-      { kind: 'spend_limit', percentUsed: 37, resetsAt: '2026-10-26T00:00:00Z' },
+      { kind: 'spend_limit', percentUsed: 37, resetsAt: '2026-10-13T00:01:00Z' },
     ],
     changed: ['context', 'rateLimits'],
   })
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [, wk, spend] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
-  // The reset clock is the machine's local time, so only its shape is pinned.
+  // A week to the minute keeps the weekday, a minute past it names the date. The clock is local time, so the
+  // date is the 12th or 13th and the hour is not pinned.
   expect(wk).toMatch(/ · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/)
-  expect(spend).toMatch(/^spend: 37% used · reset: (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2} \d\d:\d\d$/)
+  expect(spend).toMatch(/^spend: 37% used · reset: Oct 1[23] \d\d:\d\d$/)
   await desktop.unmount()
 })
 

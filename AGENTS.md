@@ -116,9 +116,10 @@ reds one is a change in behaviour, not a test to update.
   overlapping measures both toast. `$.ui.notify` is no substitute: on the
   desktop it answers `no-surface` and shows nothing.
 - **Time a burst by its rises, and only in the card.** A measure fires at every
-  whole-point crossing, so each rise over the previous reading of the same
-  `kind@resetsAt` is logged in the limit's `rises` with `$.clock.now()`; a
-  session's first reading is no rise, since when it was reached is unknown. A
+  whole-point crossing, so each reading of the same `kind@resetsAt` that passes
+  a whole point over the previous one is logged in the limit's `rises` with
+  `$.clock.now()` (the last 16). Not every rise: a turn's end also reads tenths.
+  A session's first reading is no rise, since when it was reached is unknown. A
   window card draws `at this speed: ~Xh left` from the newest run of three or
   more rises spanning ten minutes or longer, no gap past `BURST_GAP_MS`, and
   drops it once the last rise is older than that gap. It never colours a meter
@@ -143,7 +144,7 @@ theme keys `warning` / `error`. The `ctx` hover card's category squares are lite
 orange, green, amber, the rest grey — whatever their theme key. The card ranks
 by the local estimate, so its colours mark rank, not a category's `/context`
 colour. Under a card's title, lines that are always there are plain text and
-come first; a line that comes and goes (a window's forecast and step) opens
+come first; a line that comes and goes (a window's forecast, speed and step) opens
 with the rest-grey square (`CONTEXT_SWATCH_REST`) and sits below them, so a
 coloured square in a card always means a rank. A category's
 own `color` key draws the terminal's palette instead. The 60% / 85% thresholds in `tone()` are quoted in `README.md`; change

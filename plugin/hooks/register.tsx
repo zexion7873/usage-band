@@ -83,9 +83,11 @@ const clockTime = (at: Date) => `${String(at.getHours()).padStart(2, '0')}:${Str
 // Local time of the reset; the weekday only when it is a day or more away, the date past a week, where a weekday repeats.
 const resetClock = (resetsAt: string, now: number) => {
   const at = new Date(resetsAt)
-  const away = at.getTime() - now
-  if (away > 7 * 86_400_000) return `${MONTHS[at.getMonth()]} ${at.getDate()} ${clockTime(at)}`
-  return away >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
+  // A local calendar week, not 7 × 24 h: across a clock change the weekday would repeat an hour early or late.
+  const week = new Date(now)
+  week.setDate(week.getDate() + 7)
+  if (at > week) return `${MONTHS[at.getMonth()]} ${at.getDate()} ${clockTime(at)}`
+  return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
 }
 
 // A card draws the name left and the value at its right edge; `alt` reads the two joined as `text`.
@@ -163,14 +165,14 @@ const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number
 // Typed at a terminal, through Remote Control, or by the desktop app (an SDK host). An unknown kind leaves the step unshown, never wrong.
 const YOUR_MESSAGE = new Set(['composer', 'bridge', 'sdk'])
 
-// From the reading at your last message: a measure also fires each time a window crosses a whole point mid-turn.
-// That makes each rise over the previous reading a crossing, timed by `now`. A window that reset since has neither.
+// From the reading at your last message; a measure fires at each whole-point crossing, so `now` times it.
+// Only whole points: a turn's end also reads tenths, and every quiet turn would count as a rise.
 const withHistory = (limits: SessionRateLimit[], before: UsageBandLimit[] | undefined, now: number): UsageBandLimit[] =>
   limits.map(limit => {
     const prev = before?.find(b => b.kind === limit.kind && b.resetsAt === limit.resetsAt)
     if (prev === undefined) return limit
-    const rises =
-      limit.percentUsed > prev.percentUsed ? [...(prev.rises ?? []), { pct: limit.percentUsed, at: now }].slice(-RISES_KEPT) : prev.rises
+    const crossed = Math.floor(limit.percentUsed) > Math.floor(prev.percentUsed)
+    const rises = crossed ? [...(prev.rises ?? []), { pct: limit.percentUsed, at: now }].slice(-RISES_KEPT) : prev.rises
     return {
       ...limit,
       ...(prev.base === undefined ? {} : { base: prev.base, delta: limit.percentUsed - prev.base }),
