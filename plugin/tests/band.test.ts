@@ -411,17 +411,18 @@ test('a burst that a reset interrupts starts over, and a spend limit gets a spee
 
 // usage() answers the account's live reading: what this process's latest response reported.
 const liveEngine = (on: On) => {
-  const live = { wk: 40, fiveHour: 10 }
-  const limits = (wk: number, fiveHour: number) => [
+  const live = { wk: 40, fiveHour: 10, spend: 30 }
+  const limits = (wk: number, fiveHour: number, spend: number) => [
     { kind: 'five_hour', percentUsed: fiveHour, resetsAt: '2026-10-06T03:20:00Z' },
     { kind: 'seven_day', percentUsed: wk, resetsAt: '2026-10-08T21:00:00Z' },
+    { kind: 'spend_limit', percentUsed: spend, resetsAt: '2026-10-26T00:00:00Z' },
   ]
   on('session.measure', (_, e) => ({ changed: e.changed }))
   on('session.usage', () => ({
     value: {
       startedAt: NOW,
       context: { tokens: 84000, window: 200000, percent: 42, breakdown: BREAKDOWN },
-      rateLimits: limits(live.wk, live.fiveHour),
+      rateLimits: limits(live.wk, live.fiveHour, live.spend),
     },
   }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
@@ -433,10 +434,10 @@ const liveEngine = (on: On) => {
   on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
   return {
     live,
-    measure: ($: Engine, wk: number, fiveHour = live.fiveHour) =>
+    measure: ($: Engine, wk: number, fiveHour = live.fiveHour, spend = live.spend) =>
       $.session.measure({
         context: { tokens: 84000, window: 200000, percent: 42 },
-        rateLimits: limits(wk, fiveHour),
+        rateLimits: limits(wk, fiveHour, spend),
         changed: ['rateLimits'],
       }),
   }
@@ -458,10 +459,11 @@ test("after a quiet stretch, +N% counts from your message's first response, not 
   const clock = mock.clock(on, { now: NOW })
   const { live, measure } = liveEngine(on)
   await measure($, 40)
-  // 20 min with no response here while another session spends 3 points; the first response reports 43.
+  // 20 min with no response here while another session spends 3 wk points and 2 of 5h; the first response reports them.
   await clock.advance(20 * 60_000)
   await submit($, 'one line', 'composer')
   live.wk = 43
+  live.fiveHour = 12
   await mainStep($)
   // The turn's second response moves 2 more points and no crossing fires before the turn ends.
   live.wk = 45
@@ -533,15 +535,16 @@ test('a short pause, or a turn you did not start, keeps the base at your message
   expect(await steps($)).toEqual(['+5%', '+5%'])
 })
 
-test("past an hour 5h keeps the base at your message, its first response being the message's own re-send; wk does not", async ($, on) => {
+test("past an hour 5h keeps the base at your message, its first response being the message's own re-send; wk and spend do not", async ($, on) => {
   const clock = mock.clock(on, { now: NOW })
   const { live, measure } = liveEngine(on)
   await measure($, 40, 10)
   await clock.advance(70 * 60_000)
   await submit($, 'back', 'sdk')
-  // Other sessions moved wk 3 points meanwhile; the uncached re-send moves 5h 2.
+  // Other sessions moved wk and a spend limit 3 points meanwhile; the uncached re-send moves 5h 2.
   live.wk = 43
   live.fiveHour = 12
+  live.spend = 33
   await mainStep($)
   await measure($, 43, 12)
   expect(await steps($)).toEqual(['+2%', '+2%'])

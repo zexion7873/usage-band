@@ -144,7 +144,9 @@ own light or dark setting through `prefers-color-scheme` (probed 2026-11-02:
 app Light over macOS Dark matched `light`), so a bar with a pace tick carries
 a fixed `<style>` that darkens it to `PACE_TICK_LIGHT` on light, chosen to keep
 the dark theme's contrast on the sampled light track, not sampled.
-`rsvg-convert` ignores the rule, so the PNGs stay as they are. The percent text beside it uses the
+`rsvg-convert` ignores the rule, so the PNGs stay as they are, and the hero
+strips it: it paints its own dark band, which a light-mode reader would see
+under a darkened tick. The percent text beside it uses the
 theme keys `warning` / `error`. The `ctx` hover card's category squares are literals too
 (`CONTEXT_SWATCH` in `plugin/hooks/register.tsx`), sampled from the desktop
 `/context` panel, which colours categories by rank — the four largest blue,

@@ -4,7 +4,7 @@ export const tone = (percent: number) => (percent >= 85 ? 'over' : percent >= 60
 // The bar is drawn as an image: theme keys don't reach it, so colors are literal (sampled from the app's usage panel).
 const FILL = { calm: '#4177d0', hot: '#bf882e', over: '#c04742' } as const
 export const PACE_TICK = '#9c9c9c'
-// The image does follow the app's light theme: there the sampled grey falls to 1.9:1 on the track, this keeps dark's 3.6:1.
+// The image does follow the app's light theme: there the sampled grey falls to 1.9:1 on the track; this gives 3.6:1, near dark's 3.7:1.
 const PACE_TICK_LIGHT = '#6b6b6b'
 export const COMPACT_TICK = '#c04742'
 // Three bars share the 768 px desktop row with the +N% steps: past 60 the widest likely figures wrap it.
