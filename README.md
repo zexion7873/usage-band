@@ -85,9 +85,10 @@ screen reader also reads:
 - **A rate-limit window**: how much of the window has elapsed and the local
   time it resets (its date, when that is more than a week away); then, when
   they apply, where it ends up if the rest of it burns at the rate so far — in
-  amber when that runs it out before the reset —, how long the rest lasts at
-  the speed of the last few points while they keep coming, and how far it
-  moved since your last message.
+  amber when that runs it out before the reset, and only from a reading under
+  10 minutes old, as other sessions may have spent since —, how long the rest
+  lasts at the speed of the last few points while they keep coming, and how far
+  it moved since your last message.
 
 The terminal draws the headline figures as one line of text:
 

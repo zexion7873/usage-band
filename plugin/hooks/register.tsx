@@ -330,6 +330,8 @@ export const register: Register = on => {
     if (e.props.hasSurvey || current === null) return below
 
     const now = await $.clock.now()
+    // An old reading spread over the time since would forecast a slowdown other sessions may not have had.
+    const isRecent = current.readAt !== undefined && now - current.readAt < QUIET_MIN_MS
     const detail = current.detail
     const ctxPercent = current.contextPercent ?? 0
     const ctxDetail =
@@ -372,7 +374,7 @@ export const register: Register = on => {
         }
         const reset = untilReset(limit.resetsAt, now)
         const paceAt = pace(limit, now)
-        const ahead = forecast(limit, now)
+        const ahead = isRecent ? forecast(limit, now) : undefined
         const speed = atThisSpeed(limit, now)
         // The engine reports one decimal; the CLI's own notice floors it, and floor never shows 100% early.
         const used = Math.floor(limit.percentUsed)
