@@ -851,6 +851,19 @@ test('rate-limit forecast waits until a tenth of the window has passed', async (
   await desktop.unmount()
 })
 
+test('rate-limit forecast waits for a reading under 10 minutes old', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  // 12% with 1h40m of 5h gone ends near 36%; ten idle minutes later the same 12% would read ~33%, though other sessions may have spent.
+  expect(await fiveHourCard($)).toMatch(/^5h: 12% used · time passed: 33% · reset: \d\d:\d\d · at reset: ~36%$/)
+  await clock.advance(10 * 60_000)
+  expect(await fiveHourCard($)).toMatch(/^5h: 12% used · time passed: 37% · reset: \d\d:\d\d$/)
+
+  await measureFiveHour($, 14, '2026-10-06T03:20:00Z')
+  expect(await fiveHourCard($)).toContain('at reset: ~38%')
+})
+
 test('desktop band wraps its meters in a narrow pane instead of overlapping them', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)

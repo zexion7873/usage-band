@@ -126,6 +126,11 @@ reds one is a change in behaviour, not a test to update.
   more rises spanning ten minutes or longer, no gap past `BURST_GAP_MS`, and
   drops it once the last rise is older than that gap. It never colours a meter
   or raises a toast: on a 168 h window every fan-out would trip it.
+- **Forecast only from a recent reading.** A window card's `at reset` /
+  `runs out` line needs `readAt` under 10 min old (`QUIET_MIN_MS`, the same
+  bound the `+N%` re-base uses); an undated reading has none. Spread over the
+  idle time since, an old reading forecasts a slowdown other sessions may not
+  have had. The toast is untouched: a measure always carries its own reading.
 
 Two more have no test yet:
 
