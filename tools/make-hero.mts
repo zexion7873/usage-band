@@ -30,7 +30,9 @@ let x = PAD
 for (const m of meters) {
   const barX = x + m.label.length * CHAR + GAP
   parts.push(text(barX - GAP, m.label, DIM, 'end'))
-  parts.push(bar(m.percent, [...m.marks]).replace('<svg ', `<svg x="${barX}" y="${ROW_Y - BAR.tick / 2}" `))
+  // The hero paints its own dark band, so the light-theme tick rule would darken a tick on dark for a light-mode reader.
+  const drawn = bar(m.percent, [...m.marks]).replace(/<style>.*?<\/style>/, '')
+  parts.push(drawn.replace('<svg ', `<svg x="${barX}" y="${ROW_Y - BAR.tick / 2}" `))
   const figures = `<tspan fill="${'tone' in m ? TEXT_COLOR[m.tone] : DIM}">${m.percent}%</tspan> <tspan fill="${DIM}">${m.detail}</tspan>`
   parts.push(text(barX + BAR.width + GAP, figures))
   x = barX + BAR.width + GAP + `${m.percent}% ${m.detail}`.length * CHAR + 3 * CHAR

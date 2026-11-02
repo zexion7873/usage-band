@@ -64,6 +64,7 @@ const CONTEXT_SWATCH = ['#3987e5', '#d95926', '#189e71', '#c98502']
 const CONTEXT_SWATCH_REST = '#97958d'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 // Under this share of the window elapsed, a straight-line forecast swings on every response.
 const MIN_FORECAST_PCT = 10
 
@@ -79,9 +80,13 @@ const untilReset = (resetsAt: string | undefined, now: number) =>
 
 const clockTime = (at: Date) => `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
 
-// Local time of the reset; the weekday only when it is a day or more away.
+// Local time of the reset; the weekday only when it is a day or more away, the date past a week, where a weekday repeats.
 const resetClock = (resetsAt: string, now: number) => {
   const at = new Date(resetsAt)
+  // A local calendar week, not 7 × 24 h: across a clock change the weekday would repeat an hour early or late.
+  const week = new Date(now)
+  week.setDate(week.getDate() + 7)
+  if (at > week) return `${MONTHS[at.getMonth()]} ${at.getDate()} ${clockTime(at)}`
   return at.getTime() - now >= 86_400_000 ? `${DAYS[at.getDay()]} ${clockTime(at)}` : clockTime(at)
 }
 
@@ -105,6 +110,27 @@ const forecast = (limit: SessionRateLimit, now: number) => {
   const p = projection(limit, now)
   if (p === undefined) return undefined
   return p.atReset < 100 ? line('at reset', `~${Math.round(p.atReset)}%`) : line('runs out', `in ~${duration(p.runsOutIn)}`, true)
+}
+
+// A longer gap between rises ends a burst: under load 5h moves a point every few minutes, wk and spend far slower.
+const BURST_GAP_MS: Record<string, number> = { five_hour: 15 * 60_000 }
+const BURST_GAP_DEFAULT_MS = 60 * 60_000
+const BURST_MIN_MS = 10 * 60_000
+const RISES_KEPT = 16
+
+// How long the rest lasts at the speed of the latest burst: three or more rises, over ten minutes or longer.
+// The straight-line forecast averages the whole window, so a late burst barely moves it.
+const atThisSpeed = (limit: UsageBandLimit, now: number) => {
+  const rises = limit.rises ?? []
+  const gap = own(BURST_GAP_MS, limit.kind) ?? BURST_GAP_DEFAULT_MS
+  const last = rises.at(-1)
+  if (last === undefined || limit.percentUsed >= 100 || now - last.at > gap) return undefined
+  let first = rises.length - 1
+  while (first > 0 && rises[first]!.at - rises[first - 1]!.at <= gap) first--
+  const start = rises[first]!
+  if (rises.length - first < 3 || last.at - start.at < BURST_MIN_MS) return undefined
+  const perMs = (last.pct - start.pct) / (last.at - start.at)
+  return perMs > 0 ? transient(line('at this speed', `~${duration((100 - limit.percentUsed) / perMs)} left`)) : undefined
 }
 
 // Share of the window already elapsed: usage above it is ahead of an even burn.
@@ -139,13 +165,43 @@ const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number
 // Typed at a terminal, through Remote Control, or by the desktop app (an SDK host). An unknown kind leaves the step unshown, never wrong.
 const YOUR_MESSAGE = new Set(['composer', 'bridge', 'sdk'])
 
-// From the reading at your last message: a measure also fires each time a window crosses a whole point mid-turn.
-// A window that reset since then has no step from it to show.
-const withDeltas = (limits: SessionRateLimit[], before: UsageBandLimit[] | undefined): UsageBandLimit[] =>
+// From the reading at your last message; a measure fires at each whole-point crossing, so `now` times it.
+// Only whole points: a turn's end also reads tenths, and every quiet turn would count as a rise.
+const withHistory = (limits: SessionRateLimit[], before: UsageBandLimit[] | undefined, now: number): UsageBandLimit[] =>
   limits.map(limit => {
-    const base = before?.find(b => b.kind === limit.kind && b.resetsAt === limit.resetsAt)?.base
-    return base === undefined ? limit : { ...limit, base, delta: limit.percentUsed - base }
+    const prev = before?.find(b => b.kind === limit.kind && b.resetsAt === limit.resetsAt)
+    if (prev === undefined) return limit
+    const crossed = Math.floor(limit.percentUsed) > Math.floor(prev.percentUsed)
+    const rises = crossed ? [...(prev.rises ?? []), { pct: limit.percentUsed, at: now }].slice(-RISES_KEPT) : prev.rises
+    return {
+      ...limit,
+      ...(prev.base === undefined ? {} : { base: prev.base, delta: limit.percentUsed - prev.base }),
+      ...(rises === undefined ? {} : { rises }),
+    }
   })
+
+// A reading 10 min old or more misses what other sessions spent since, so your message's first response reads the base.
+// 5h only: past an hour that response re-sends the context uncached, the message's own spend, and can be whole 5h points.
+const QUIET_MIN_MS = 10 * 60_000
+const QUIET_MAX_MS: Record<string, number> = { five_hour: 60 * 60_000 }
+
+// The step on show stays until a reading replaces it. A seeded reading (after /clear) has no date, so it is as stale as any.
+const withBase = (prev: UsageBand, now: number): UsageBand => {
+  const idle = prev.readAt === undefined ? undefined : now - prev.readAt
+  const quiet = (kind: string) => idle === undefined || (idle >= QUIET_MIN_MS && idle <= (own(QUIET_MAX_MS, kind) ?? Infinity))
+  const rateLimits: UsageBandLimit[] = prev.rateLimits.map(({ base, ...l }) => (quiet(l.kind) ? l : { ...l, base: l.percentUsed }))
+  return { ...prev, basePending: rateLimits.some(l => l.base === undefined), rateLimits }
+}
+
+const rebased = (prev: UsageBand, readings: SessionRateLimit[]): UsageBand => ({
+  ...prev,
+  basePending: false,
+  rateLimits: prev.rateLimits.map(l => {
+    if (l.base !== undefined) return l
+    const base = readings.find(r => r.kind === l.kind && r.resetsAt === l.resetsAt)?.percentUsed ?? l.percentUsed
+    return { ...l, base, delta: 0 }
+  }),
+})
 
 const snapshot = (
   context: SessionContextUsage,
@@ -194,7 +250,12 @@ export const register: Register = on => {
   })
 
   on('session.measure', async ($, e, next) => {
-    await update($, usage, prev => snapshot(e.context, withDeltas(e.rateLimits, prev?.rateLimits), e.cost, prev?.detail))
+    const now = await $.clock.now()
+    await update($, usage, prev => ({
+      ...snapshot(e.context, withHistory(e.rateLimits, prev?.rateLimits, now), e.cost, prev?.detail),
+      readAt: now,
+      basePending: prev?.basePending ?? false,
+    }))
     // Second write so a failed breakdown leaves the headline figures current.
     if (e.changed.includes('context')) {
       const { context } = await $.session.usage({ breakdown: 'summary' })
@@ -202,7 +263,6 @@ export const register: Register = on => {
       await update($, usage, prev => prev && { ...prev, detail })
     }
     // The CLI warns near a limit, not ahead of it: this says so while there is still time to slow down.
-    const now = await $.clock.now()
     for (const limit of e.rateLimits) {
       const p = projection(limit, now)
       const key = `${limit.kind}@${limit.resetsAt}`
@@ -220,8 +280,10 @@ export const register: Register = on => {
 
   // Not at turn.start: a background agent's report starts a main turn of its own, which would reset the step to 0.
   on('prompt.submit', async ($, e, next) => {
-    if (YOUR_MESSAGE.has(e.origin.kind))
-      await update($, usage, prev => prev && { ...prev, rateLimits: prev.rateLimits.map(l => ({ ...l, base: l.percentUsed })) })
+    if (YOUR_MESSAGE.has(e.origin.kind)) {
+      const now = await $.clock.now()
+      await update($, usage, prev => prev && withBase(prev, now))
+    }
     return next(e)
   })
 
@@ -252,7 +314,13 @@ export const register: Register = on => {
     const u = result.usage
     if (u === null || e.agentId !== undefined) return result
     const fill = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
-    await update($, usage, prev => prev && withContext(prev, fill))
+    const now = await $.clock.now()
+    await update($, usage, prev => prev && { ...withContext(prev, fill), readAt: now })
+    // Not at the turn's first measure: with no crossing mid-turn that is its end, and every response after the first would be lost.
+    if ((await read($, usage))?.basePending) {
+      const { rateLimits } = await $.session.usage()
+      await update($, usage, prev => (prev?.basePending ? rebased(prev, rateLimits) : prev))
+    }
     return result
   })
 
@@ -305,6 +373,7 @@ export const register: Register = on => {
         const reset = untilReset(limit.resetsAt, now)
         const paceAt = pace(limit, now)
         const ahead = forecast(limit, now)
+        const speed = atThisSpeed(limit, now)
         // The engine reports one decimal; the CLI's own notice floors it, and floor never shows 100% early.
         const used = Math.floor(limit.percentUsed)
         // Readings come whole (seen on 2.1.300) or with a decimal; a whole step reads +1%, not +1.0%.
@@ -324,6 +393,7 @@ export const register: Register = on => {
             ...(limit.resetsAt === undefined ? [] : [line('reset', resetClock(limit.resetsAt, now))]),
             // Absent early in a window; the step changes with every message, so it goes last.
             ...(ahead === undefined ? [] : [transient(ahead)]),
+            ...(speed === undefined ? [] : [speed]),
             ...(moved === '' ? [] : [transient(line('since last message', moved))]),
           ],
           parts: [],

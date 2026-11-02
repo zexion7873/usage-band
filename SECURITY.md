@@ -26,8 +26,9 @@ module run inside Claude Code's own engine. It:
 - reads the session's usage — context fill, rate-limit windows, cost, and the
   context breakdown — through the engine's `$.session.usage()` and the
   `session.measure` event;
-- keeps the latest figures, and which rate-limit windows it has warned about,
-  in two plugin-state atoms;
+- keeps the latest figures, the reading and time of each rate-limit window's
+  last 16 whole-point rises, and which windows it has warned about, in two
+  plugin-state atoms;
 - draws them above the prompt: an SVG image per meter on the desktop, text in
   the terminal;
 - shows a toast, once per window, when a rate-limit window is on course to run

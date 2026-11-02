@@ -84,11 +84,18 @@ reds one is a change in behaviour, not a test to update.
   last measure: one also fires whenever a window crosses a whole point, and
   readings come whole, so the turn's final step was always 0. Not from
   `turn.start`: a background agent's report starts a main turn of its own (its
-  submission's origin is `peer`). The desktop shows the step on the row as well
-  as in the card. That row fits one line in a default-width pane only with
-  `BAR.width` at 60, half-cell gaps inside each meter, and the cost moved into
-  cache's card: the cost grows without bound, so on the row it wraps sooner or
-  later. Each block's `minWidth` share (`ROW_SHARE`) is proportional to its
+  submission's origin is `peer`). When that reading is 10 min old or more
+  (`readAt`, stamped by each measure and main-thread step; subagent steps
+  skip it to spare the band a redraw each), or undated because `seed` wrote
+  it, the submit drops each such window's base and the turn's first priced
+  main-thread `turn.step` takes it from `$.session.usage()`, so other
+  sessions' spend before your message stays out. 5h alone stops at an hour
+  (`QUIET_MAX_MS`): past it the first response re-sends the context uncached,
+  the message's own spend, which can be whole 5h points. The desktop shows the
+  step on the row as well as in the card. That row fits one line in a
+  default-width pane only with `BAR.width` at 60, half-cell gaps inside each
+  meter, and the cost moved into cache's card: the cost grows without bound,
+  so on the row it wraps sooner or later. Each block's `minWidth` share (`ROW_SHARE`) is proportional to its
   widest likely content; change what a block can show and its share follows.
   The shares fill the row whole, so a window with none (a gateway's
   `spend_limit`, a kind the band does not know) is drawn after `cache` and
@@ -110,6 +117,15 @@ reds one is a change in behaviour, not a test to update.
   `update` retries on a version miss, and a `read` before it lets two
   overlapping measures both toast. `$.ui.notify` is no substitute: on the
   desktop it answers `no-surface` and shows nothing.
+- **Time a burst by its rises, and only in the card.** A measure fires at every
+  whole-point crossing, so each reading of the same `kind@resetsAt` that passes
+  a whole point over the previous one is logged in the limit's `rises` with
+  `$.clock.now()` (the last 16). Not every rise: a turn's end also reads tenths.
+  A session's first reading is no rise, since when it was reached is unknown. A
+  window card draws `at this speed: ~Xh left` from the newest run of three or
+  more rises spanning ten minutes or longer, no gap past `BURST_GAP_MS`, and
+  drops it once the last rise is older than that gap. It never colours a meter
+  or raises a toast: on a 168 h window every fan-out would trip it.
 
 Two more have no test yet:
 
@@ -123,14 +139,21 @@ Two more have no test yet:
 The desktop bar is an SVG image, so theme keys never reach it — `FILL` and the
 tick colours in `plugin/hooks/bar.ts` are literals sampled from the app's own
 usage panel. A tick the fill has passed turns white across the fill: that
-`#fff` is chosen for contrast, not sampled. The percent text beside it uses the
+`#fff` is chosen for contrast, not sampled. The image does follow the app's
+own light or dark setting through `prefers-color-scheme` (probed 2026-11-02:
+app Light over macOS Dark matched `light`), so a bar with a pace tick carries
+a fixed `<style>` that darkens it to `PACE_TICK_LIGHT` on light, chosen to keep
+the dark theme's contrast on the sampled light track, not sampled.
+`rsvg-convert` ignores the rule, so the PNGs stay as they are, and the hero
+strips it: it paints its own dark band, which a light-mode reader would see
+under a darkened tick. The percent text beside it uses the
 theme keys `warning` / `error`. The `ctx` hover card's category squares are literals too
 (`CONTEXT_SWATCH` in `plugin/hooks/register.tsx`), sampled from the desktop
 `/context` panel, which colours categories by rank — the four largest blue,
 orange, green, amber, the rest grey — whatever their theme key. The card ranks
 by the local estimate, so its colours mark rank, not a category's `/context`
 colour. Under a card's title, lines that are always there are plain text and
-come first; a line that comes and goes (a window's forecast and step) opens
+come first; a line that comes and goes (a window's forecast, speed and step) opens
 with the rest-grey square (`CONTEXT_SWATCH_REST`) and sits below them, so a
 coloured square in a card always means a rank. A category's
 own `color` key draws the terminal's palette instead. The 60% / 85% thresholds in `tone()` are quoted in `README.md`; change

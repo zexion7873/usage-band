@@ -1,4 +1,13 @@
-export type UsageBandLimit = { kind: string; percentUsed: number; resetsAt?: string; base?: number; delta?: number }
+export type UsageBandRise = { pct: number; at: number }
+
+export type UsageBandLimit = {
+  kind: string
+  percentUsed: number
+  resetsAt?: string
+  base?: number
+  delta?: number
+  rises?: UsageBandRise[]
+}
 
 export type UsageBandPart = { name: string; tokens: number }
 
@@ -14,6 +23,8 @@ export type UsageBand = {
   contextWindow: number
   rateLimits: UsageBandLimit[]
   limitsPending?: boolean
+  readAt?: number
+  basePending?: boolean
   costUsd?: number
   detail?: UsageBandDetail
 }

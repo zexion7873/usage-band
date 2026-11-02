@@ -119,6 +119,12 @@ test('a tick level with the fill, or on an empty bar, keeps its own colour', asy
   expect(bar(0, [{ percent: 0, color: '#9c9c9c' }])).not.toContain('#fff')
 })
 
+test('on the light theme a pace tick darkens, and nothing else changes colour', async () => {
+  const svg = bar(70, [{ percent: 40, color: '#9c9c9c' }, { percent: 90, color: '#c04742' }])
+  expect(svg).toContain('<style>@media (prefers-color-scheme: light){rect[fill="#9c9c9c"]{fill:#6b6b6b}}</style>')
+  expect(svg.match(/@media/g)).toHaveLength(1)
+})
+
 test('band keeps what the plugins beneath it drew', async ($, on) => {
   mock.clock(on, { now: NOW })
   on('session.measure', (_, e) => ({ changed: e.changed }))
@@ -258,6 +264,290 @@ test('a rate-limit window shows how far it moved since your last message, until 
   await measureFiveHour($, 13.4, '2026-10-06T03:20:00Z')
   expect(await terminalLine(terminal)).toEqual(line('13%'))
   await terminal.unmount()
+})
+
+test("a window's card says how long the rest lasts at the speed of a burst, and only while it lasts", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const alt = async () => {
+    const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+    const [, fiveHour] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
+    await desktop.unmount()
+    return fiveHour
+  }
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  // Three rises four minutes apart span eight minutes: too short to call a speed.
+  for (const pct of [13, 14, 15]) {
+    await clock.advance(4 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await alt()).not.toContain('at this speed')
+
+  // Rises at 4, 8, 12 and 16 min: 3 points in 12 min, so the 84 left last 336 min.
+  await clock.advance(4 * 60_000)
+  await measureFiveHour($, 16, '2026-10-06T03:20:00Z')
+  expect(await alt()).toMatch(/^5h: 16% used · time passed: 39% · reset: \d\d:\d\d · at reset: ~41% · at this speed: ~5h36m left$/)
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await desktop.find({ type: 'Text', text: /^at this speed$/ }))?.props.color).toBeUndefined()
+  // A grey square each for 5h's forecast, 5h's speed and wk's run-out, after ctx's two ranks.
+  const grey = '#97958d'
+  expect((await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)).toEqual(['#3987e5', '#d95926', grey, grey, grey])
+  // In the card only: the meter keeps its calm colour, the terminal line its figures, and only wk's run-out toasts.
+  expect((await desktop.find({ type: 'Text', text: /^16%$/ }))?.props.dimColor).toBe(true)
+  await desktop.unmount()
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx 42% (84k/200k) · 5h 16% (3h4m) · wk 89% (2d20h) · cache 83%'])
+  await terminal.unmount()
+  expect(toasts.filter(t => !t.startsWith('wk '))).toEqual([])
+
+  // Within the gap the figure holds; 16 min with no rise ends a 5h burst, and a rise after that starts a new one.
+  await clock.advance(5 * 60_000)
+  expect(await alt()).toContain('at this speed: ~5h36m left')
+  await clock.advance(11 * 60_000)
+  expect(await alt()).not.toContain('at this speed')
+  await clock.advance(4 * 60_000)
+  await measureFiveHour($, 17, '2026-10-06T03:20:00Z')
+  expect(await alt()).not.toContain('at this speed')
+})
+
+const fiveHourCard = async ($: Engine) => {
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const [, fiveHour] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
+  await desktop.unmount()
+  return fiveHour
+}
+
+test('a burst is a chain of rises each close to the one before; two rises are not one', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  for (const pct of [13, 14]) {
+    await clock.advance(12 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await fiveHourCard($)).not.toContain('at this speed')
+  // Rises at 12, 24, 36 and 48 min: the chain spans 36 min for 3 points, so the 84 left last 1008 min.
+  for (const pct of [15, 16]) {
+    await clock.advance(12 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await fiveHourCard($)).toContain('at this speed: ~16h48m left')
+})
+
+test('the speed reads the newest 16 rises, and a rise of tenths is no rise', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  await measureFiveHour($, 12, '2026-10-06T03:20:00Z')
+  // 13 to 28 every 4 min, then 29 and 30 a minute apart: the kept 16 run from 15 at 12 min to 30 at 66 min,
+  // 15 points in 54 min, so the 70 left last 252 min.
+  for (let pct = 13; pct <= 28; pct++) {
+    await clock.advance(4 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  for (const pct of [29, 30]) {
+    await clock.advance(60_000)
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+  }
+  expect(await fiveHourCard($)).toContain('at this speed: ~4h12m left')
+
+  // A new window whose turn ends read 2.1, 2.4, 2.7 and 2.9 a few minutes apart never passed a whole point.
+  await measureFiveHour($, 2, '2026-10-06T05:25:00Z')
+  for (const pct of [2.1, 2.4, 2.7, 2.9]) {
+    await clock.advance(5 * 60_000)
+    await measureFiveHour($, pct, '2026-10-06T05:25:00Z')
+  }
+  expect(await fiveHourCard($)).not.toContain('at this speed')
+})
+
+test('a burst that a reset interrupts starts over, and a spend limit gets a speed too', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  for (const pct of [12, 13, 14, 15, 16]) {
+    await measureFiveHour($, pct, '2026-10-06T03:20:00Z')
+    await clock.advance(5 * 60_000)
+  }
+  await measureFiveHour($, 1, '2026-10-06T05:25:00Z')
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await desktop.findAll({ type: 'Svg' }))[1]?.props.alt).not.toContain('at this speed')
+  await desktop.unmount()
+
+  // A spend limit has no span, so no forecast; its rises at 20, 40 and 60 min still give 4 points in 40 min.
+  const spend = (percentUsed: number) =>
+    $.session.measure({
+      context: { tokens: 84000, window: 200000, percent: 42 },
+      rateLimits: [{ kind: 'spend_limit', percentUsed, resetsAt: '2026-10-26T00:00:00Z' }],
+      changed: ['context', 'rateLimits'],
+    })
+  await spend(10)
+  for (const pct of [12, 14, 16]) {
+    await clock.advance(20 * 60_000)
+    await spend(pct)
+  }
+  const spendAlt = async () => {
+    const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+    const [, alt] = (await ui.findAll({ type: 'Svg' })).map(s => s.props.alt)
+    await ui.unmount()
+    return alt
+  }
+  expect(await spendAlt()).toMatch(/^spend: 16% used · reset: [A-Z][a-z]{2} \d{1,2} \d\d:\d\d · at this speed: ~14h0m left$/)
+  // Its burst holds for an hour without a rise, then ends.
+  await clock.advance(59 * 60_000)
+  expect(await spendAlt()).toContain('at this speed: ~14h0m left')
+  await clock.advance(2 * 60_000)
+  expect(await spendAlt()).not.toContain('at this speed')
+
+  // A new burst that reaches the limit has nothing left to last.
+  for (const pct of [18, 20, 100]) {
+    await spend(pct)
+    await clock.advance(20 * 60_000)
+  }
+  expect(await spendAlt()).not.toContain('at this speed')
+})
+
+// usage() answers the account's live reading: what this process's latest response reported.
+const liveEngine = (on: On) => {
+  const live = { wk: 40, fiveHour: 10, spend: 30 }
+  const limits = (wk: number, fiveHour: number, spend: number) => [
+    { kind: 'five_hour', percentUsed: fiveHour, resetsAt: '2026-10-06T03:20:00Z' },
+    { kind: 'seven_day', percentUsed: wk, resetsAt: '2026-10-08T21:00:00Z' },
+    { kind: 'spend_limit', percentUsed: spend, resetsAt: '2026-10-26T00:00:00Z' },
+  ]
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({
+    value: {
+      startedAt: NOW,
+      context: { tokens: 84000, window: 200000, percent: 42, breakdown: BREAKDOWN },
+      rateLimits: limits(live.wk, live.fiveHour, live.spend),
+    },
+  }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('classic.SessionStart', () => ({}))
+  on('turn.step', async function* (_, e) {
+    const usage = { input_tokens: 1000, output_tokens: 500, cache_read_input_tokens: 70000, cache_creation_input_tokens: 13000, model: 'm' }
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage }
+  })
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  return {
+    live,
+    measure: ($: Engine, wk: number, fiveHour = live.fiveHour, spend = live.spend) =>
+      $.session.measure({
+        context: { tokens: 84000, window: 200000, percent: 42 },
+        rateLimits: limits(wk, fiveHour, spend),
+        changed: ['rateLimits'],
+      }),
+  }
+}
+
+const mainStep = async ($: Engine) => {
+  const stream = $.turn.step({ turnId: 't', index: 0, model: 'm', messageCount: 3 })
+  for await (const _ of stream);
+}
+
+const steps = async ($: Engine) => {
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const shown = (await ui.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)
+  await ui.unmount()
+  return shown
+}
+
+test("after a quiet stretch, +N% counts from your message's first response, not from before other sessions spent", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+  // 20 min with no response here while another session spends 3 wk points and 2 of 5h; the first response reports them.
+  await clock.advance(20 * 60_000)
+  await submit($, 'one line', 'composer')
+  live.wk = 43
+  live.fiveHour = 12
+  await mainStep($)
+  // The turn's second response moves 2 more points and no crossing fires before the turn ends.
+  live.wk = 45
+  await mainStep($)
+  await measure($, 45)
+  expect(await steps($)).toEqual(['+2%', '+2%'])
+
+  // Another quiet 20 min, and this time a crossing lands before the first response: it has nothing to count from.
+  await clock.advance(20 * 60_000)
+  await submit($, 'again', 'composer')
+  await measure($, 47)
+  expect(await steps($)).toEqual([])
+  live.wk = 47
+  await mainStep($)
+  await measure($, 47)
+  expect(await steps($)).toEqual([])
+})
+
+test('after /clear, /resume or /branch the reading carries no date, so your next message counts from its first response', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+  await clock.advance(5 * 60_000)
+  // The re-read holds this process's last reading, 40; other sessions have spent 3 since.
+  await $.classic.SessionStart({ source: 'clear' })
+  await submit($, 'new task', 'composer')
+  live.wk = 43
+  await mainStep($)
+  await measure($, 43)
+  expect(await steps($)).toEqual([])
+})
+
+test("a main-thread response dates the reading, so a message soon after it keeps today's base", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+  await submit($, 'go', 'composer')
+  // A response 15 min in with no crossing; the next message 5 min later is no quiet stretch.
+  await clock.advance(15 * 60_000)
+  live.wk = 40.6
+  await mainStep($)
+  await clock.advance(5 * 60_000)
+  await submit($, 'and', 'composer')
+  live.wk = 43
+  await mainStep($)
+  await measure($, 43)
+  expect(await steps($)).toEqual(['+3%', '+3%'])
+})
+
+test('a short pause, or a turn you did not start, keeps the base at your message', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40)
+
+  // Under 10 min.
+  await clock.advance(5 * 60_000)
+  live.wk = 43
+  await submit($, 'go', 'composer')
+  await mainStep($)
+  await measure($, 43)
+  expect(await steps($)).toEqual(['+3%', '+3%'])
+
+  // A background agent's report after 20 quiet minutes: the step still counts from your message.
+  await clock.advance(20 * 60_000)
+  live.wk = 45
+  await submit($, '<agent-message from="a1">', 'task-notification')
+  await mainStep($)
+  await measure($, 45)
+  expect(await steps($)).toEqual(['+5%', '+5%'])
+})
+
+test("past an hour 5h keeps the base at your message, its first response being the message's own re-send; wk and spend do not", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  const { live, measure } = liveEngine(on)
+  await measure($, 40, 10)
+  await clock.advance(70 * 60_000)
+  await submit($, 'back', 'sdk')
+  // Other sessions moved wk and a spend limit 3 points meanwhile; the uncached re-send moves 5h 2.
+  live.wk = 43
+  live.fiveHour = 12
+  live.spend = 33
+  await mainStep($)
+  await measure($, 43, 12)
+  expect(await steps($)).toEqual(['+2%', '+2%'])
 })
 
 test('a window that reset since your last message shows no change from the old one', async ($, on) => {
@@ -716,6 +1006,27 @@ test('desktop band keeps ctx, 5h, wk and cache on the first row and wraps any ot
   expect(blocks.map(b => b.props.minWidth ?? 'none')).toEqual(['28%', '30%', '30%', '12%', 'none'])
   const [, , , spend] = await desktop.findAll({ type: 'Svg' })
   expect(spend?.props.alt).toMatch(/^spend: 37% used/)
+  await desktop.unmount()
+})
+
+test('a reset more than a week away names its date, where a weekday would repeat', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [
+      { kind: 'seven_day', percentUsed: 21, resetsAt: '2026-10-13T00:00:00Z' },
+      { kind: 'spend_limit', percentUsed: 37, resetsAt: '2026-10-13T00:01:00Z' },
+    ],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const [, wk, spend] = (await desktop.findAll({ type: 'Svg' })).map(s => s.props.alt)
+  // A week to the minute keeps the weekday, a minute past it names the date. The clock is local time, so the
+  // date is the 12th or 13th and the hour is not pinned.
+  expect(wk).toMatch(/ · reset: (Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d\d:\d\d$/)
+  expect(spend).toMatch(/^spend: 37% used · reset: Oct 1[23] \d\d:\d\d$/)
   await desktop.unmount()
 })
 
