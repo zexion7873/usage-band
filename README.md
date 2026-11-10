@@ -159,11 +159,19 @@ Every figure comes from Claude Code's own session usage, read locally. The mod
 writes no files, opens no ports, and makes no network requests or model calls —
 `claude plugin validate plugin` prints every engine call it makes.
 
-Every hook hands its event on unchanged. `classic.SessionStart` (after
-`/clear`, `/resume` and `/branch`) only re-reads the usage, and
-`prompt.submit` only notes each window's reading as the base for `+N%` (after
-a quiet stretch, `turn.step` takes it from your message's first response) —
-none of them adds context or touches your prompt.
+Every hook hands its event on, and its result back, unchanged — none of them
+adds context, touches your prompt, or alters a response. What each one does
+with what it sees:
+
+| Hook | Reads | Changes |
+|------|-------|---------|
+| `session.start` | The session's usage. | Its own state; starts the 60 s redraw. |
+| `classic.SessionStart` | The session's usage again, after `/clear`, `/resume` and `/branch` only. | Its own state. Nothing in the event: no context is added, no setting or instruction is touched. |
+| `prompt.submit` | Where the submission came from, never its text. | Its own state: each window's reading becomes the base for `+N%`. The prompt goes on as you wrote it. |
+| `session.measure` | The figures in the event. | Its own state; raises the run-out toast. |
+| `turn.step` | The response's token counts, never its content. | Its own state: `ctx`, and after a quiet stretch the base for `+N%`. |
+| `session.compact` | The size the compaction leaves. | Its own state. |
+| `ui.render` · `AbovePrompt` | Its own state. | Draws the band above whatever is already there. |
 
 ---
 
