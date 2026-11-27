@@ -142,6 +142,17 @@ reds one is a change in behaviour, not a test to update.
   cast: no field, no line. `session.measure` must carry `cacheTtlMs` and
   `cacheUntil` across, as it does `costBase`. Subagent steps are skipped: their
   cache is not the main thread's.
+- **Name a fallback model only while it answers.** A main-thread `turn.step`
+  whose `e.model` is not `$.session.model()` stores the step's model, and the
+  next step on the session's model clears it. The session's model is read at
+  each step, so a `/model` switch is no fallback. Both strings are full ids on
+  2.1.325 and 2.1.331, whether the session was started by alias or by id, so
+  they are compared as they come. Terminal: the name in `warning` in front of
+  `ctx`, never dropped. Desktop: the row is full, so `ctx`'s label turns
+  `warning` and its card gains a plain `answered by` line. Not caught: the API
+  answering with another model than the request named. `session.measure` must
+  carry `fallbackModel` across. A test that raises `turn.step` has to answer
+  `session.model`.
 - **Warn once per window.** A `session.measure` whose forecast runs a window
   out before its reset raises one `$.ui.toast`, remembered as `kind@resetsAt`
   in the `warned` atom. The membership check sits inside `update`'s callback:

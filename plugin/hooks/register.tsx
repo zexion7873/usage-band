@@ -279,6 +279,7 @@ export const register: Register = on => {
       costBase: prev?.costBase,
       cacheTtlMs: prev?.cacheTtlMs,
       cacheUntil: prev?.cacheUntil,
+      fallbackModel: prev?.fallbackModel,
     }))
     // Second write so a failed breakdown leaves the headline figures current.
     if (e.changed.includes('context')) {
@@ -336,6 +337,8 @@ export const register: Register = on => {
   on('turn.step', async function* ($, e, next) {
     // A cache entry's lifetime runs from the start of the request that touched it, not from its response.
     const sentAt = await $.clock.now()
+    // Read at each step, so a model the person switched to with /model is the session's own, not a fallback.
+    const sessionModel = await $.session.model()
     const result = yield* next(e)
     const u = result.usage
     // Subagents skipped: their cache is not the main thread's.
@@ -345,7 +348,9 @@ export const register: Register = on => {
     // The lifetimes are newer than the pinned engine's types; an older engine reports neither.
     const wrote = u as { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number }
     const ttl = wrote.ephemeral_1h_input_tokens ? CACHE_HOUR_MS : wrote.ephemeral_5m_input_tokens ? CACHE_SHORT_MS : undefined
-    await update($, usage, prev => prev && { ...withContext(prev, fill), readAt: now, ...cacheWarm(prev, sentAt, ttl) })
+    // The engine names another model for a step it falls back on: the windows then burn at another rate.
+    const fallbackModel = e.model === sessionModel ? undefined : e.model
+    await update($, usage, prev => prev && { ...withContext(prev, fill), readAt: now, ...cacheWarm(prev, sentAt, ttl), fallbackModel })
     // Not at the turn's first measure: with no crossing mid-turn that is its end, and every response after the first would be lost.
     if ((await read($, usage))?.basePending) {
       const { rateLimits } = await $.session.usage()
@@ -364,6 +369,8 @@ export const register: Register = on => {
     const isRecent = current.readAt !== undefined && now - current.readAt < QUIET_MIN_MS
     const detail = current.detail
     const ctxPercent = current.contextPercent
+    // Named only while it lasts: both surfaces show the session's model elsewhere, and the row has no room to repeat it.
+    const fallback = current.fallbackModel?.replace(/^claude-/, '')
     const ctxDetail =
       current.contextTokens === undefined ? '' : `${tokens(current.contextTokens)}/${tokens(current.contextWindow)}`
     const meters = [
@@ -380,6 +387,7 @@ export const register: Register = on => {
           ...(detail?.compactPercent === undefined ? [] : [line('auto-compact', `${detail.compactPercent}%`)]),
           // Plain, as on a window with no reading: a grey square here would read as one more category.
           ...(ctxPercent === undefined ? [line('new number', 'after next message')] : []),
+          ...(fallback === undefined ? [] : [line('answered by', fallback, true)]),
         ],
         // The summary breakdown is a local estimate; /context counts with the token-count API.
         parts: (detail?.contextParts ?? []).map((p, rank) => ({
@@ -469,6 +477,9 @@ export const register: Register = on => {
       const { Box, Text } = $.ui.resolve(e)
       const pieces = (dropped: number) =>
         [
+          // In front of ctx, whose window is that model's; never dropped, it is the exception the line exists to show.
+          { key: 'fallback', text: fallback ?? '', color: 'warning' as const, dim: false },
+          { key: 'fallback:dot', text: fallback === undefined ? '' : ' · ', color: undefined, dim: true },
           ...meters.flatMap((m, i) => [
             { key: `${m.key}:label`, text: `${i > 0 ? ' · ' : ''}${m.label} `, color: undefined, dim: true },
             { key: `${m.key}:figure`, text: m.figure, color: TEXT_COLOR[tone(m.percent)], dim: tone(m.percent) === 'calm' },
@@ -549,7 +560,8 @@ export const register: Register = on => {
       // A minimum, not a width: content past its share widens the block and wraps the row rather than overlapping.
       // The padding sits inside that minimum (seen on the desktop), so it costs a full row nothing and parts a crowded one.
       <Box key={m.key} flexDirection="row" alignItems="center" gap={0.5} minWidth={stretchedTo(m)?.minWidth[m.key] ?? own(ROW_SHARE, m.key)} paddingRight={0.5}>
-        <Text dimColor>{m.label}</Text>
+        {/* The row is full, so a fallback colours ctx's label and names the model in its card. */}
+        {m.key === 'ctx' && fallback !== undefined ? <Text color="warning">{m.label}</Text> : <Text dimColor>{m.label}</Text>}
         <Svg
           source={bar(m.percent, m.marks, stretchedTo(m)?.bar)}
           alt={[m.title, ...m.extra.map(l => l.text), ...m.parts.map(p => `${p.name} about ${p.size}`)].filter(Boolean).join(' · ')}

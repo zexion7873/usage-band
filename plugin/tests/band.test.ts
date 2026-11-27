@@ -40,6 +40,7 @@ const engine = (on: On) => {
       rateLimits: [],
     },
   }))
+  on('session.model', () => ({ value: 'm' }))
   on('classic.SessionStart', () => ({}))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
@@ -437,6 +438,7 @@ const liveEngine = (on: On) => {
   }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('classic.SessionStart', () => ({}))
+  on('session.model', () => ({ value: 'm' }))
   on('turn.step', async function* (_, e) {
     const usage = { input_tokens: 1000, output_tokens: 500, cache_read_input_tokens: 70000, cache_creation_input_tokens: 13000, model: 'm' }
     return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage }
@@ -1216,6 +1218,60 @@ test('the cost shows what your last message has cost, in cache\'s card and on a 
   const rebased = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await rebased.find({ type: 'Text', text: /^since last message$/ })).toBeUndefined()
   await rebased.unmount()
+})
+
+// turn.step names the model the engine resolved for the step: the session's, or the one it fell back on.
+test("a response from a model other than the session's names it on both surfaces, until the session's model answers again", async ($, on) => {
+  mock.clock(on, { now: NOW })
+  let sessionModel = 'claude-sonnet-5-5'
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({
+    value: { startedAt: NOW, context: { tokens: 84000, window: 200000, percent: 42, breakdown: BREAKDOWN }, rateLimits: [] },
+  }))
+  on('session.model', () => ({ value: sessionModel }))
+  on('turn.step', async function* (_, e) {
+    const usage = { input_tokens: 4000, output_tokens: 500, cache_read_input_tokens: 70000, cache_creation_input_tokens: 10000, model: e.model }
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage }
+  })
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  const step = async (model: string, agentId?: string) => {
+    const stream = $.turn.step({ turnId: 't', index: 0, model, messageCount: 3, agentId })
+    for await (const _ of stream);
+  }
+  const line = async () => {
+    const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+    const text = await terminalLine(ui)
+    await ui.unmount()
+    return text
+  }
+  await $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], changed: ['context'] })
+
+  await step('claude-sonnet-5-5')
+  expect(await line()).toEqual(['ctx 42% (84k/200k) · cache 83%'])
+
+  await step('claude-haiku-5-5')
+  expect(await line()).toEqual(['haiku-5-5 · ctx 42% (84k/200k) · cache 83%'])
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await terminal.find({ type: 'Text', text: /^haiku-5-5$/ }))?.props.color).toBe('warning')
+  await terminal.unmount()
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await desktop.find({ type: 'Text', text: /^ctx$/ }))?.props.color).toBe('warning')
+  const [ctx] = await desktop.findAll({ type: 'Svg' })
+  expect(ctx?.props.alt).toBe('ctx: 42% used · auto-compact: 80% · answered by: haiku-5-5 · Messages about 50k · System tools about 20k')
+  await desktop.unmount()
+
+  // A measure rebuilds the state from its event; the name rides along. A subagent on another model is no fallback.
+  await $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], changed: ['context'] })
+  await step('claude-sonnet-5-5', 'sub')
+  expect(await line()).toEqual(['haiku-5-5 · ctx 42% (84k/200k) · cache 83%'])
+
+  // The person switches to that model: it is the session's now.
+  sessionModel = 'claude-haiku-5-5'
+  await step('claude-haiku-5-5')
+  expect(await line()).toEqual(['ctx 42% (84k/200k) · cache 83%'])
+  const calm = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await calm.find({ type: 'Text', text: /^ctx$/ }))?.props.color).toBeUndefined()
+  await calm.unmount()
 })
 
 // The engine reports which lifetime a cache write was made for; any main-thread response restarts it.
