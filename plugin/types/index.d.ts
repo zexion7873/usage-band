@@ -31,6 +31,7 @@ export type UsageBand = {
   costBase?: number
   cacheTtlMs?: number
   cacheUntil?: number
+  fallbackModel?: string
   detail?: UsageBandDetail
 }
 

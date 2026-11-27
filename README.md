@@ -115,6 +115,13 @@ its least urgent figures first: the step on the cost, the token detail beside
 meter's percent stays; only a terminal narrower than those ends the line in
 `…`.
 
+When Claude Code answers with a model other than the session's — a fallback —
+the band names it for as long as that lasts: the terminal line begins with the
+model's name in amber (`haiku-5-5 · ctx 42% …`), and on the desktop the `ctx`
+label turns amber and its card says `answered by: haiku-5-5`. The windows burn
+at a different rate then, and `ctx` measures that model's window. A model you
+switch to with `/model` is the session's own and is not marked.
+
 Reset countdowns and pace ticks keep moving while the session sits idle — the
 band redraws once a minute rather than waiting for the next response. A window
 whose reset passes while the session sits idle reads `— (reset)` until the next
