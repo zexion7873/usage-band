@@ -194,7 +194,8 @@ const withBase = (prev: UsageBand, now: number): UsageBand => {
   const idle = prev.readAt === undefined ? undefined : now - prev.readAt
   const quiet = (kind: string) => idle === undefined || (idle >= QUIET_MIN_MS && idle <= (own(QUIET_MAX_MS, kind) ?? Infinity))
   const rateLimits: UsageBandLimit[] = prev.rateLimits.map(({ base, ...l }) => (quiet(l.kind) ? l : { ...l, base: l.percentUsed }))
-  return { ...prev, basePending: rateLimits.some(l => l.base === undefined), rateLimits }
+  // The cost is this session's alone, so its base needs no quiet-stretch rule: no other session moves it.
+  return { ...prev, basePending: rateLimits.some(l => l.base === undefined), rateLimits, costBase: prev.costUsd }
 }
 
 const rebased = (prev: UsageBand, readings: SessionRateLimit[]): UsageBand => ({
@@ -261,6 +262,7 @@ export const register: Register = on => {
       ...snapshot(e.context, withHistory(e.rateLimits, prev?.rateLimits, now), e.cost, prev?.detail),
       readAt: now,
       basePending: prev?.basePending ?? false,
+      costBase: prev?.costBase,
     }))
     // Second write so a failed breakdown leaves the headline figures current.
     if (e.changed.includes('context')) {
@@ -432,6 +434,9 @@ export const register: Register = on => {
     const cache = detail?.cacheHitPercent === undefined ? '' : `cache ${detail.cacheHitPercent}%`
     // The engine prices the session locally and asks a mod to label it an estimate: `~`, as on every estimate in a card.
     const cost = current.costUsd === undefined ? '' : `~$${current.costUsd.toFixed(2)}`
+    // The rise over the total at your last message: subagents' requests are in it, so a fan-out shows under the message that began it.
+    const costStep = current.costUsd === undefined || current.costBase === undefined ? 0 : current.costUsd - current.costBase
+    const costMoved = costStep >= 0.005 ? `+~$${costStep.toFixed(2)}` : ''
     // Only a 5h or wk reading says there is a plan: a gateway's lone spend_limit is none. Fast mode bills credits even on one.
     const onPlan = current.rateLimits.some(l => AWAITED.includes(l.kind))
 
@@ -451,7 +456,8 @@ export const register: Register = on => {
               </Text>
             ))}
             {cache && <Text dimColor> · {cache}</Text>}
-            {cost && <Text dimColor> · {cost}</Text>}
+            {/* Not on a plan's line: there the dollars are no charge, and one more figure is noise. */}
+            {cost && <Text dimColor> · {cost}{!onPlan && costMoved && ` ${costMoved}`}</Text>}
           </Text>
         </Box>
       )
@@ -547,6 +553,7 @@ export const register: Register = on => {
                           line('based on', 'API prices'),
                           ...(current.costUnpriced ? [line('includes', 'a model with no price')] : []),
                           ...(onPlan ? [line('on a plan', 'limits or credits')] : []),
+                          ...(costMoved ? [transient(line('since last message', costMoved))] : []),
                         ]
                       : []),
                   ])}

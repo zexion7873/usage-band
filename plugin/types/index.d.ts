@@ -28,6 +28,7 @@ export type UsageBand = {
   basePending?: boolean
   costUsd?: number
   costUnpriced?: boolean
+  costBase?: number
   detail?: UsageBandDetail
 }
 

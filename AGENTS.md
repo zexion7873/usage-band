@@ -118,6 +118,12 @@ reds one is a change in behaviour, not a test to update.
   capped bar leaves over the blocks so the gaps stay even; cache takes the rest. Both constants are measured, not reported, so a font or zoom change can
   wrap the row; `SLACK_PCT` is the margin. `minWidth` must be a whole percent:
   the engine drops the whole tree for `45.9%`.
+- **Count the cost's `+~$N` from your last message too.** The same
+  `prompt.submit` stores `costUsd` as `costBase`; `session.measure` rebuilds the
+  state from its event, so it must carry `costBase` across or the step dies at
+  the first reading. No quiet-stretch rule: the cost is this session's alone.
+  Drawn in cache's card, and on the terminal line only for an account with no
+  `5h` or `wk` window: on a plan the dollars are no charge.
 - **Warn once per window.** A `session.measure` whose forecast runs a window
   out before its reset raises one `$.ui.toast`, remembered as `kind@resetsAt`
   in the `warned` atom. The membership check sits inside `update`'s callback:

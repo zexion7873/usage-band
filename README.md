@@ -90,14 +90,18 @@ screen reader also reads:
   lasts at the speed of the last few points while they keep coming, and how far
   it moved since your last message.
 - **`cache`**: the three token counts behind the percent — read from the cache,
-  written to it, and not cached — then the session cost and what it is priced
-  at.
+  written to it, and not cached — then the session cost, what it is priced at,
+  and how much your last message has added to it, subagents' requests included.
 
 The terminal draws the headline figures as one line of text:
 
 ```text
 ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · ~$1.23
 ```
+
+On an account with no `5h` or `wk` window (an API key, a gateway), where the
+dollars are what is charged, the cost is followed by what your last message has
+added to it: `~$1.23 +~$0.42`.
 
 In a terminal too narrow for all of it, the line stays one line and ends in
 `…`; the cost goes first, then the cache.

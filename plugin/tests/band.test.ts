@@ -1176,6 +1176,48 @@ test('the cost card names a plan only for an account with a 5h or wk window', as
   await ultra.unmount()
 })
 
+test('the cost shows what your last message has cost, in cache\'s card and on a per-token account\'s terminal line', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const measure = (usd: number, rateLimits: { kind: string; percentUsed: number }[]) =>
+    $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits, cost: { usd }, changed: ['context'] })
+
+  await measure(1, [])
+  const before = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await before.find({ type: 'Text', text: /^since last message$/ })).toBeUndefined()
+  await before.unmount()
+
+  await submit($, 'go', 'composer')
+  await measure(1.42, [])
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^since last message$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^\+~\$0\.42$/ })).toBeDefined()
+  // It comes and goes, so it opens with the grey square.
+  expect((await desktop.findAll({ type: 'Text', text: /^■ $/ })).map(s => s.props.color)).toContain('#97958d')
+  await desktop.unmount()
+  const apiKey = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(apiKey)).toEqual(['ctx 42% (84k/200k) · cache 83% · ~$1.42 +~$0.42'])
+  await apiKey.unmount()
+
+  // A background agent's report is no message of yours: the step keeps counting from the last one.
+  await submit($, 'done', 'task-notification')
+  await measure(1.5, [])
+  const stillCounting = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(stillCounting)).toEqual(['ctx 42% (84k/200k) · cache 83% · ~$1.50 +~$0.50'])
+  await stillCounting.unmount()
+
+  // On a plan the dollars are no charge: the card keeps the step, the terminal line leaves it out.
+  await measure(1.5, [{ kind: 'seven_day', percentUsed: 7 }])
+  const plan = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(plan)).toEqual(['ctx 42% (84k/200k) · wk 7% · cache 83% · ~$1.50'])
+  await plan.unmount()
+
+  await submit($, 'next', 'composer')
+  const rebased = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await rebased.find({ type: 'Text', text: /^since last message$/ })).toBeUndefined()
+  await rebased.unmount()
+})
+
 // SessionCost.hasUnknownPrice: the total then holds a model charged at another model's rates.
 test('the cost card says so when the total includes a model with no price of its own', async ($, on) => {
   mock.clock(on, { now: NOW })
