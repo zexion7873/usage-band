@@ -1218,6 +1218,83 @@ test('the cost shows what your last message has cost, in cache\'s card and on a 
   await rebased.unmount()
 })
 
+// The engine reports which lifetime a cache write was made for; any main-thread response restarts it.
+test("cache's card counts down to the prompt cache lapsing, and the figure turns amber once it has", async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  engine(on)
+  let wrote: Record<string, number> = { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 9000 }
+  on('turn.step', async function* (_, e) {
+    const usage = { input_tokens: 4000, output_tokens: 500, cache_read_input_tokens: 70000, cache_creation_input_tokens: 10000, model: 'm', ...wrote }
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage }
+  })
+  const step = async (agentId?: string) => {
+    const stream = $.turn.step({ turnId: 't', index: 0, model: 'm', messageCount: 3, agentId })
+    for await (const _ of stream);
+  }
+  const measure = () =>
+    $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], changed: ['context'] })
+  const card = async () => {
+    const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+    const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+    const figure = await ui.find({ type: 'Text', text: /^cache 83%$/ })
+    await ui.unmount()
+    const name = texts.find(t => t === 'lasts' || t === 'lapsed')
+    const value = texts.find(t => /^~(\d+h)?\d+m$/.test(t) || t === 'next message is uncached')
+    return { name, value, color: figure?.props.color }
+  }
+
+  await measure()
+  // No response has named a lifetime yet: no line.
+  expect((await card()).name).toBeUndefined()
+
+  await step()
+  expect(await card()).toEqual({ name: 'lasts', value: '~1h0m', color: undefined })
+  // A measure rebuilds the state from its event; the lifetime rides along.
+  await measure()
+  await clock.advance(59 * 60_000)
+  expect(await card()).toEqual({ name: 'lasts', value: '~1m', color: undefined })
+
+  // A subagent's response does not touch the main thread's cache.
+  await step('sub')
+  await clock.advance(2 * 60_000)
+  expect(await card()).toEqual({ name: 'lapsed', value: 'next message is uncached', color: 'warning' })
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  // The figure alone: the dot before it stays dim.
+  expect((await terminal.find({ type: 'Text', text: /^cache 83%$/ }))?.props.color).toBe('warning')
+  await terminal.unmount()
+
+  // A response that wrote nothing still read the cache: the same lifetime starts over.
+  wrote = { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 0 }
+  await step()
+  expect(await card()).toEqual({ name: 'lasts', value: '~1h0m', color: undefined })
+
+  // Five minutes alone is five minutes; beside an hour's write (a server tool's own), the hour stands.
+  wrote = { ephemeral_5m_input_tokens: 9000, ephemeral_1h_input_tokens: 0 }
+  await step()
+  expect((await card()).value).toBe('~5m')
+  wrote = { ephemeral_5m_input_tokens: 300, ephemeral_1h_input_tokens: 9000 }
+  await step()
+  expect((await card()).value).toBe('~1h0m')
+})
+
+test('an engine that names no cache lifetime leaves the card without the line', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  on('turn.step', async function* (_, e) {
+    const usage = { input_tokens: 4000, output_tokens: 500, cache_read_input_tokens: 70000, cache_creation_input_tokens: 10000, model: 'm' }
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage }
+  })
+  await $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], changed: ['context'] })
+  const stream = $.turn.step({ turnId: 't', index: 0, model: 'm', messageCount: 3 })
+  for await (const _ of stream);
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await desktop.find({ type: 'Text', text: /^cache: 83% read$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^lasts$/ })).toBeUndefined()
+  expect(await desktop.find({ type: 'Text', text: /^lapsed$/ })).toBeUndefined()
+  await desktop.unmount()
+})
+
 // SessionCost.hasUnknownPrice: the total then holds a model charged at another model's rates.
 test('the cost card says so when the total includes a model with no price of its own', async ($, on) => {
   mock.clock(on, { now: NOW })
