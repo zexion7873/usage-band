@@ -14,6 +14,7 @@ export type UsageBandPart = { name: string; tokens: number }
 export type UsageBandDetail = {
   compactPercent?: number
   cacheHitPercent?: number
+  cacheTokens?: { read: number; written: number; fresh: number }
   contextParts: UsageBandPart[]
 }
 

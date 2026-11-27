@@ -98,9 +98,16 @@ test('band shows context fill and each rate-limit window with time to reset', as
   expect(await desktop.find({ type: 'Text', text: /^84k\/200k$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^2d21h$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^3h20m$/ })).toBeDefined()
-  // The cost moved into cache's card: it grows without bound and pushed itself off the row.
-  expect(await desktop.find({ type: 'Text', text: /^~\$1\.23$/ })).toBeUndefined()
-  expect(await desktop.find({ type: 'Text', text: /^cost: ~\$1\.23$/ })).toBeDefined()
+  // The cost moved into cache's card: it grows without bound and pushed itself off the row, whose figures are the tabular ones.
+  const costs = await desktop.findAll({ type: 'Text', text: /^~\$1\.23$/ })
+  expect(costs.map(t => t.props.tabular)).toEqual([undefined])
+  // The card is the cache's own: its title and the three counts behind the percent, then the cost.
+  expect(await desktop.find({ type: 'Text', text: /^cache: 83% read$/ })).toBeDefined()
+  for (const [name, value] of [['read', '70k'], ['written', '10k'], ['not cached', '4k']] as const) {
+    expect(await desktop.find({ type: 'Text', text: new RegExp(`^${name}$`) })).toBeDefined()
+    expect(await desktop.find({ type: 'Text', text: new RegExp(`^${value}$`) })).toBeDefined()
+  }
+  expect(await desktop.find({ type: 'Text', text: /^cost$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^based on$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^API prices$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^on a plan$/ })).toBeDefined()
@@ -889,7 +896,8 @@ test('desktop meter with detail reveals it in a hover card; one without draws no
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const cards = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.display === 'none')
   // FoundElement carries no `hover`, so the reveal itself is checked by eye on the desktop.
-  expect(cards.map(b => b.props.position)).toEqual(['absolute'])
+  // Two cards: ctx's and cache's own. 5h has no line to show, so it draws none.
+  expect(cards.map(b => b.props.position)).toEqual(['absolute', 'absolute'])
   expect(await desktop.find({ type: 'Text', text: /^ctx: no reading$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^auto-compact$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^16%$/ })).toBeDefined()
@@ -1127,7 +1135,7 @@ test('desktop band keeps the cost on the row while there is no cache figure to h
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await desktop.find({ type: 'Text', text: /^~\$1\.23$/ })).toBeDefined()
-  expect(await desktop.find({ type: 'Text', text: /^cost: / })).toBeUndefined()
+  expect(await desktop.find({ type: 'Text', text: /^cost$/ })).toBeUndefined()
   await desktop.unmount()
 })
 
@@ -1144,14 +1152,14 @@ test('the cost card names a plan only for an account with a 5h or wk window', as
 
   await measure([])
   const apiKey = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect(await apiKey.find({ type: 'Text', text: /^cost: ~\$1\.23$/ })).toBeDefined()
+  expect(await apiKey.find({ type: 'Text', text: /^cost$/ })).toBeDefined()
   expect(await apiKey.find({ type: 'Text', text: /^based on$/ })).toBeDefined()
   expect(await apiKey.find({ type: 'Text', text: /^on a plan$/ })).toBeUndefined()
   await apiKey.unmount()
 
   await measure([{ kind: 'spend_limit', percentUsed: 37, resetsAt: '2026-10-26T00:00:00Z' }])
   const gateway = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect(await gateway.find({ type: 'Text', text: /^cost: ~\$1\.23$/ })).toBeDefined()
+  expect(await gateway.find({ type: 'Text', text: /^cost$/ })).toBeDefined()
   expect(await gateway.find({ type: 'Text', text: /^on a plan$/ })).toBeUndefined()
   await gateway.unmount()
 

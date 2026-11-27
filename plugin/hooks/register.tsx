@@ -156,6 +156,8 @@ const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number
         ? Math.round((breakdown.autoCompactThreshold / window) * 100)
         : undefined,
     cacheHitPercent: input > 0 ? Math.round((read / input) * 100) : undefined,
+    // The three counts that percent is made of, for cache's own card.
+    ...(api === null ? {} : { cacheTokens: { read, written: api.cache_creation_input_tokens, fresh: api.input_tokens } }),
     contextParts: breakdown.categories
       .filter(c => c.kind === 'used')
       .sort((a, b) => b.tokens - a.tokens)
@@ -527,13 +529,26 @@ export const register: Register = on => {
           {(cache || cost) && (
             <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={sized?.minWidth.cache ?? ROW_SHARE.cache}>
               <Text dimColor tabular>{cache || cost}</Text>
-              {cache && cost && (
+              {cache && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
-                  <Text>{`cost: ${cost}`}</Text>
+                  {/* The card explains the figure hovered; the cost, which has no place on the row, follows it. */}
+                  <Text>{`cache: ${detail?.cacheHitPercent}% read`}</Text>
                   {table([
-                    line('based on', 'API prices'),
-                    ...(current.costUnpriced ? [line('includes', 'a model with no price')] : []),
-                    ...(onPlan ? [line('on a plan', 'limits or credits')] : []),
+                    ...(detail?.cacheTokens === undefined
+                      ? []
+                      : [
+                          line('read', tokens(detail.cacheTokens.read)),
+                          line('written', tokens(detail.cacheTokens.written)),
+                          line('not cached', tokens(detail.cacheTokens.fresh)),
+                        ]),
+                    ...(cost
+                      ? [
+                          line('cost', cost),
+                          line('based on', 'API prices'),
+                          ...(current.costUnpriced ? [line('includes', 'a model with no price')] : []),
+                          ...(onPlan ? [line('on a plan', 'limits or credits')] : []),
+                        ]
+                      : []),
                   ])}
                 </Box>
               )}

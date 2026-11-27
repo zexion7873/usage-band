@@ -89,6 +89,9 @@ screen reader also reads:
   10 minutes old, as other sessions may have spent since —, how long the rest
   lasts at the speed of the last few points while they keep coming, and how far
   it moved since your last message.
+- **`cache`**: the three token counts behind the percent — read from the cache,
+  written to it, and not cached — then the session cost and what it is priced
+  at.
 
 The terminal draws the headline figures as one line of text:
 
