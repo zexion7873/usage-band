@@ -243,6 +243,8 @@ test('a rate-limit window shows how far it moved since your last message, until 
 
   const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await terminalLine(terminal)).toEqual(line('13% +1%'))
+  // Dim on both surfaces: a bright step outshines the reading it belongs to.
+  expect((await terminal.find({ type: 'Text', text: /^ \+1%$/ }))?.props.dimColor).toBe(true)
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
@@ -250,7 +252,7 @@ test('a rate-limit window shows how far it moved since your last message, until 
   expect(wk?.props.alt).not.toContain('since last message')
   expect(await desktop.find({ type: 'Text', text: /^since last message$/ })).toBeDefined()
   // 5h's step on the row and as its card's value; wk, which did not move, has neither.
-  expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)).toEqual(['+1%', '+1%'])
+  expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => [t.text, t.props.dimColor])).toEqual([['+1%', true], ['+1%', true]])
   await desktop.unmount()
 
   // A background agent's report starts a main turn of its own, through a submission that is not yours.

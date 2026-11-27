@@ -435,7 +435,7 @@ export const register: Register = on => {
               <Text key={m.key}>
                 <Text dimColor>{i > 0 ? ' · ' : ''}{m.label} </Text>
                 <Text color={TEXT_COLOR[tone(m.percent)]} dimColor={tone(m.percent) === 'calm'}>{m.figure}</Text>
-                {m.moved && <Text> {m.moved}</Text>}
+                {m.moved && <Text dimColor> {m.moved}</Text>}
                 <Text dimColor>{m.detail && ` (${m.detail})`}</Text>
               </Text>
             ))}
