@@ -66,6 +66,13 @@ reds one is a change in behaviour, not a test to update.
   `limitsPending`, the band draws both windows at `—`, and the first
   `session.measure` replaces them with the windows the account really has.
   The last reading is not kept in `$.store`: the mod stays read-only.
+- **Hold `ctx` until a reading.** `usage().context` has no `tokens` or `percent`
+  until the live window's first response (a new session, `/clear`), while the
+  prompt, tools and memory files already fill it: the band draws `—`, never
+  `0%`. Not the breakdown's estimate either: before a first response it read
+  46k where that response then reported 74k (2026-11-27). The card's
+  `new number` line is plain, as on a window with no reading: a grey square
+  there would read as one more category.
 - **Move `ctx` inside a turn.** `session.measure` fires when a turn ends, not
   per response, so `turn.step` writes each main-thread response's input tokens, and
   `session.compact` writes the result's `tokensAfter` — after a compaction

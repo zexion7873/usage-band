@@ -335,19 +335,24 @@ export const register: Register = on => {
     // An old reading spread over the time since would forecast a slowdown other sessions may not have had.
     const isRecent = current.readAt !== undefined && now - current.readAt < QUIET_MIN_MS
     const detail = current.detail
-    const ctxPercent = current.contextPercent ?? 0
+    const ctxPercent = current.contextPercent
     const ctxDetail =
       current.contextTokens === undefined ? '' : `${tokens(current.contextTokens)}/${tokens(current.contextWindow)}`
     const meters = [
       {
         key: 'ctx',
         label: 'ctx',
-        title: `ctx: ${ctxPercent}% used`,
-        percent: ctxPercent,
-        figure: `${ctxPercent}%`,
+        // No response yet in this window (a new session, /clear): the prompt and tools already fill it, so 0% is a reading nobody took.
+        title: ctxPercent === undefined ? 'ctx: no reading' : `ctx: ${ctxPercent}% used`,
+        percent: ctxPercent ?? 0,
+        figure: ctxPercent === undefined ? '—' : `${ctxPercent}%`,
         detail: ctxDetail,
         moved: '',
-        extra: detail?.compactPercent === undefined ? [] : [line('auto-compact', `${detail.compactPercent}%`)],
+        extra: [
+          ...(detail?.compactPercent === undefined ? [] : [line('auto-compact', `${detail.compactPercent}%`)]),
+          // Plain, as on a window with no reading: a grey square here would read as one more category.
+          ...(ctxPercent === undefined ? [line('new number', 'after next message')] : []),
+        ],
         // The summary breakdown is a local estimate; /context counts with the token-count API.
         parts: (detail?.contextParts ?? []).map((p, rank) => ({
           name: p.name,
