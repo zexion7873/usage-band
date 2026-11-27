@@ -90,8 +90,14 @@ screen reader also reads:
   lasts at the speed of the last few points while they keep coming, and how far
   it moved since your last message.
 - **`cache`**: the three token counts behind the percent — read from the cache,
-  written to it, and not cached — then the session cost, what it is priced at,
-  and how much your last message has added to it, subagents' requests included.
+  written to it, and not cached — then how long the prompt cache still lasts,
+  the session cost, what it is priced at, and how much your last message has
+  added to it, subagents' requests included. The cache's lifetime starts over
+  with every response in the main conversation; once it has run out, the card
+  says the next message goes out uncached and the row's `cache N%` turns amber,
+  in the terminal too. That needs a Claude Code new enough to report the
+  lifetime of a cache write (2.1.331 does, 2.1.325 does not); on an older one
+  the line is simply absent.
 
 The terminal draws the headline figures as one line of text:
 

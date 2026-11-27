@@ -29,6 +29,8 @@ export type UsageBand = {
   costUsd?: number
   costUnpriced?: boolean
   costBase?: number
+  cacheTtlMs?: number
+  cacheUntil?: number
   detail?: UsageBandDetail
 }
 

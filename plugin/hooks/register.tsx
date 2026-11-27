@@ -189,6 +189,16 @@ const withHistory = (limits: SessionRateLimit[], before: UsageBandLimit[] | unde
 const QUIET_MIN_MS = 10 * 60_000
 const QUIET_MAX_MS: Record<string, number> = { five_hour: 60 * 60_000 }
 
+// A cache write names its lifetime, and any later read or write restarts it. Claude Code's own breakpoints share one lifetime,
+// so an hour's write settles the step: a server tool adds five-minute writes of its own after its results.
+const CACHE_HOUR_MS = 60 * 60_000
+const CACHE_SHORT_MS = 5 * 60_000
+// A step that wrote nothing keeps the lifetime last named; an engine that names none leaves the band without the line.
+const cacheWarm = (prev: UsageBand, sentAt: number, ttl: number | undefined) => {
+  const cacheTtlMs = ttl ?? prev.cacheTtlMs
+  return cacheTtlMs === undefined ? {} : { cacheTtlMs, cacheUntil: sentAt + cacheTtlMs }
+}
+
 // The step on show stays until a reading replaces it. A seeded reading (after /clear) has no date, so it is as stale as any.
 const withBase = (prev: UsageBand, now: number): UsageBand => {
   const idle = prev.readAt === undefined ? undefined : now - prev.readAt
@@ -267,6 +277,8 @@ export const register: Register = on => {
       readAt: now,
       basePending: prev?.basePending ?? false,
       costBase: prev?.costBase,
+      cacheTtlMs: prev?.cacheTtlMs,
+      cacheUntil: prev?.cacheUntil,
     }))
     // Second write so a failed breakdown leaves the headline figures current.
     if (e.changed.includes('context')) {
@@ -322,12 +334,18 @@ export const register: Register = on => {
 
   // session.measure waits for the turn's end; a long turn would otherwise hold ctx at its starting fill.
   on('turn.step', async function* ($, e, next) {
+    // A cache entry's lifetime runs from the start of the request that touched it, not from its response.
+    const sentAt = await $.clock.now()
     const result = yield* next(e)
     const u = result.usage
+    // Subagents skipped: their cache is not the main thread's.
     if (u === null || e.agentId !== undefined) return result
     const fill = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
     const now = await $.clock.now()
-    await update($, usage, prev => prev && { ...withContext(prev, fill), readAt: now })
+    // The lifetimes are newer than the pinned engine's types; an older engine reports neither.
+    const wrote = u as { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number }
+    const ttl = wrote.ephemeral_1h_input_tokens ? CACHE_HOUR_MS : wrote.ephemeral_5m_input_tokens ? CACHE_SHORT_MS : undefined
+    await update($, usage, prev => prev && { ...withContext(prev, fill), readAt: now, ...cacheWarm(prev, sentAt, ttl) })
     // Not at the turn's first measure: with no crossing mid-turn that is its end, and every response after the first would be lost.
     if ((await read($, usage))?.basePending) {
       const { rateLimits } = await $.session.usage()
@@ -441,6 +459,9 @@ export const register: Register = on => {
     // The rise over the total at your last message: subagents' requests are in it, so a fan-out shows under the message that began it.
     const costStep = current.costUsd === undefined || current.costBase === undefined ? 0 : current.costUsd - current.costBase
     const costMoved = costStep >= 0.005 ? `+~$${costStep.toFixed(2)}` : ''
+    // Past its lifetime the next message sends the whole context uncached; `cache N%` only says so afterwards.
+    const cacheLeft = current.cacheUntil === undefined ? undefined : current.cacheUntil - now
+    const cacheLapsed = cacheLeft !== undefined && cacheLeft <= 0
     // Only a 5h or wk reading says there is a plan: a gateway's lone spend_limit is none. Fast mode bills credits even on one.
     const onPlan = current.rateLimits.some(l => AWAITED.includes(l.kind))
 
@@ -459,7 +480,13 @@ export const register: Register = on => {
               dim: true,
             },
           ]),
-          { key: 'cache', text: cache && dropped < DROP.cache ? ` · ${cache}` : '', color: undefined, dim: true },
+          { key: 'cache:dot', text: cache && dropped < DROP.cache ? ' · ' : '', color: undefined, dim: true },
+          {
+            key: 'cache',
+            text: cache && dropped < DROP.cache ? cache : '',
+            color: cacheLapsed ? ('warning' as const) : undefined,
+            dim: !cacheLapsed,
+          },
           {
             key: 'cost',
             // Not on a plan's line: there the dollars are no charge, and one more figure is noise.
@@ -556,7 +583,7 @@ export const register: Register = on => {
           {/* The cost grows without bound and pushed itself off the row, so it waits in cache's card; with no cache, on the row. */}
           {(cache || cost) && (
             <Box key="cache" flexDirection="row" alignItems="center" justifyContent="flex-end" minWidth={sized?.minWidth.cache ?? ROW_SHARE.cache}>
-              <Text dimColor tabular>{cache || cost}</Text>
+              {cache && cacheLapsed ? <Text color="warning" tabular>{cache}</Text> : <Text dimColor tabular>{cache || cost}</Text>}
               {cache && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   {/* The card explains the figure hovered; the cost, which has no place on the row, follows it. */}
@@ -569,6 +596,10 @@ export const register: Register = on => {
                           line('written', tokens(detail.cacheTokens.written)),
                           line('not cached', tokens(detail.cacheTokens.fresh)),
                         ]),
+                    // One line in one place, so the turn from warm to lapsed moves nothing. Under a minute still reads `~1m`.
+                    ...(cacheLeft === undefined
+                      ? []
+                      : [cacheLapsed ? line('lapsed', 'next message is uncached', true) : line('lasts', `~${duration(Math.max(cacheLeft, 60_000))}`)]),
                     ...(cost
                       ? [
                           line('cost', cost),

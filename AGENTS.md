@@ -131,6 +131,17 @@ reds one is a change in behaviour, not a test to update.
   the first reading. No quiet-stretch rule: the cost is this session's alone.
   Drawn in cache's card, and on the terminal line only for an account with no
   `5h` or `wk` window: on a plan the dollars are no charge.
+- **Count the prompt cache down from the request's start.** A main-thread
+  `turn.step` reads the clock before `next(e)`: a cache entry's lifetime runs
+  from the start of the request that read or wrote it, and every such request
+  restarts it. The lifetime is an hour when the step reports
+  `ephemeral_1h_input_tokens`, else five minutes when it reports
+  `ephemeral_5m_input_tokens`, else the one last named: a server tool adds
+  five-minute writes of its own beside Claude Code's hour. Both fields are
+  newer than the CI pin (in 2.1.331, not in 2.1.325) and are read through a
+  cast: no field, no line. `session.measure` must carry `cacheTtlMs` and
+  `cacheUntil` across, as it does `costBase`. Subagent steps are skipped: their
+  cache is not the main thread's.
 - **Warn once per window.** A `session.measure` whose forecast runs a window
   out before its reset raises one `$.ui.toast`, remembered as `kind@resetsAt`
   in the `warned` atom. The membership check sits inside `update`'s callback:
