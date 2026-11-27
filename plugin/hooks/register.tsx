@@ -230,6 +230,10 @@ const withContext = (prev: UsageBand, tokens: number): UsageBand => ({
   contextPercent: Math.round(clampPct((100 * tokens) / prev.contextWindow)),
 })
 
+// What the terminal line gives up, first to last, once it outgrows the band; a piece is drawn while fewer than its number are
+// dropped. Cut from the right instead, the line lost the cost and cache while the token detail, the least urgent, stayed.
+const DROP = { costStep: 1, ctxDetail: 2, cost: 3, cache: 4, moved: 5, detail: 6 } as const
+
 // A subscription's windows: a new or relaunched process has no reading until its first response, so they hold a dash.
 const AWAITED = ['five_hour', 'seven_day']
 
@@ -442,22 +446,40 @@ export const register: Register = on => {
 
     if (e.surface === 'terminal') {
       const { Box, Text } = $.ui.resolve(e)
+      const pieces = (dropped: number) =>
+        [
+          ...meters.flatMap((m, i) => [
+            { key: `${m.key}:label`, text: `${i > 0 ? ' · ' : ''}${m.label} `, color: undefined, dim: true },
+            { key: `${m.key}:figure`, text: m.figure, color: TEXT_COLOR[tone(m.percent)], dim: tone(m.percent) === 'calm' },
+            { key: `${m.key}:moved`, text: m.moved && dropped < DROP.moved ? ` ${m.moved}` : '', color: undefined, dim: true },
+            {
+              key: `${m.key}:detail`,
+              text: m.detail && dropped < (m.key === 'ctx' ? DROP.ctxDetail : DROP.detail) ? ` (${m.detail})` : '',
+              color: undefined,
+              dim: true,
+            },
+          ]),
+          { key: 'cache', text: cache && dropped < DROP.cache ? ` · ${cache}` : '', color: undefined, dim: true },
+          {
+            key: 'cost',
+            // Not on a plan's line: there the dollars are no charge, and one more figure is noise.
+            text: cost && dropped < DROP.cost ? ` · ${cost}${!onPlan && costMoved && dropped < DROP.costStep ? ` ${costMoved}` : ''}` : '',
+            color: undefined,
+            dim: true,
+          },
+        ].filter(p => p.text)
+      // Every character here is one cell wide, so the line's length is its width.
+      const width = (dropped: number) => pieces(dropped).reduce((cells, p) => cells + p.text.length, 0)
+      let dropped = 0
+      while (dropped < DROP.detail && width(dropped) > e.props.bodyColumns) dropped++
       return (
         <Box flexDirection="column">
           {below}
           {/* One Text, cut at the edge: a row of Texts wraps each meter in a column of its own once the line overflows. */}
           <Text wrap="truncate-end">
-            {meters.map((m, i) => (
-              <Text key={m.key}>
-                <Text dimColor>{i > 0 ? ' · ' : ''}{m.label} </Text>
-                <Text color={TEXT_COLOR[tone(m.percent)]} dimColor={tone(m.percent) === 'calm'}>{m.figure}</Text>
-                {m.moved && <Text dimColor> {m.moved}</Text>}
-                <Text dimColor>{m.detail && ` (${m.detail})`}</Text>
-              </Text>
+            {pieces(dropped).map(p => (
+              <Text key={p.key} color={p.color} dimColor={p.dim}>{p.text}</Text>
             ))}
-            {cache && <Text dimColor> · {cache}</Text>}
-            {/* Not on a plan's line: there the dollars are no charge, and one more figure is noise. */}
-            {cost && <Text dimColor> · {cost}{!onPlan && costMoved && ` ${costMoved}`}</Text>}
           </Text>
         </Box>
       )
