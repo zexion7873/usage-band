@@ -624,6 +624,20 @@ test('a window kind named like an Object member reads as its own name, with no f
   await desktop.unmount()
 })
 
+test('a window kind the band has no label for reads as words, its underscores as spaces', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'some_new_window', percentUsed: 37, resetsAt: '2026-10-06T03:20:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx 42% (84k/200k) · some new window 37% (3h20m) · cache 83%'])
+  await terminal.unmount()
+})
+
 test('a context a rounding short of a million tokens reads 1M, not 1000k', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)
