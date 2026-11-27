@@ -106,6 +106,9 @@ response brings its new figure; not `0%`, since other sessions on the account ma
 already have spent from the new window. A session that starts with no reading
 yet — a new one, or one the desktop app relaunched while it sat idle — holds
 `5h` and `wk` at `—` until the first response says which windows the account has.
+`ctx` holds `—` until that first response too, and again after `/clear`: the
+system prompt, tools and memory files already fill the window, so `0%` would be
+a reading nobody took.
 
 ### 🎯 Use cases
 

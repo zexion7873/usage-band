@@ -768,6 +768,43 @@ test('a session that starts with no rate-limit reading holds 5h and wk with a da
   await after.unmount()
 })
 
+// `tokens` and `percent` are absent until the live window's first response, while the prompt and tools already fill it.
+test('a context with no reading yet holds a dash, not 0%, until a response brings one', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({
+    value: {
+      startedAt: NOW,
+      context: { window: 1_000_000, breakdown: { ...BREAKDOWN, apiUsage: null } },
+      rateLimits: [{ kind: 'seven_day', percentUsed: 7 }],
+    },
+  }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx — · wk 7%'])
+  await terminal.unmount()
+
+  const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const [ctx] = await desktop.findAll({ type: 'Svg' })
+  expect(ctx?.props.alt).toBe(
+    'ctx: no reading · auto-compact: 16% · new number: after next message · Messages about 50k · System tools about 20k',
+  )
+  expect((await desktop.findAll({ type: 'Text', text: /^—$/ })).length).toBe(1)
+  await desktop.unmount()
+
+  await $.session.measure({
+    context: { tokens: 74000, window: 1_000_000, percent: 7 },
+    rateLimits: [{ kind: 'seven_day', percentUsed: 7 }],
+    changed: ['context'],
+  })
+  const after = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(after)).toEqual(['ctx 7% (74k/1M) · wk 7%'])
+  await after.unmount()
+})
+
 test('an account with no rate limits drops the placeholders at its first measure', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)
@@ -813,7 +850,9 @@ test('band keeps small context categories readable', async ($, on) => {
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [ctx] = await desktop.findAll({ type: 'Svg' })
-  expect(ctx?.props.alt).toBe('ctx: 0% used · auto-compact: 16% · System prompt about 5k · Messages about 412')
+  expect(ctx?.props.alt).toBe(
+    'ctx: no reading · auto-compact: 16% · new number: after next message · System prompt about 5k · Messages about 412',
+  )
   await desktop.unmount()
 })
 
@@ -851,12 +890,12 @@ test('desktop meter with detail reveals it in a hover card; one without draws no
   const cards = (await desktop.findAll({ type: 'Box' })).filter(b => b.props.display === 'none')
   // FoundElement carries no `hover`, so the reveal itself is checked by eye on the desktop.
   expect(cards.map(b => b.props.position)).toEqual(['absolute'])
-  expect(await desktop.find({ type: 'Text', text: /^ctx: 0% used$/ })).toBeDefined()
+  expect(await desktop.find({ type: 'Text', text: /^ctx: no reading$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^auto-compact$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^16%$/ })).toBeDefined()
   const [ctx] = await desktop.findAll({ type: 'Svg' })
   expect(ctx?.props.alt).toBe(
-    'ctx: 0% used · auto-compact: 16% · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
+    'ctx: no reading · auto-compact: 16% · new number: after next message · Messages about 6k · MCP tools about 5k · System tools about 4k · Memory files about 3k · Custom agents about 2k',
   )
   expect(await desktop.find({ type: 'Text', text: /^Messages$/ })).toBeDefined()
   expect(await desktop.find({ type: 'Text', text: /^~6k$/ })).toBeDefined()
