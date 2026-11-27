@@ -216,6 +216,8 @@ const snapshot = (
   contextWindow: context.window,
   rateLimits,
   costUsd: cost?.usd,
+  // Set once the total holds a model priced at another's rates; engines before the field leave it out.
+  costUnpriced: (cost as { hasUnknownPrice?: true } | undefined)?.hasUnknownPrice,
   detail,
 })
 
@@ -426,7 +428,8 @@ export const register: Register = on => {
       }),
     ]
     const cache = detail?.cacheHitPercent === undefined ? '' : `cache ${detail.cacheHitPercent}%`
-    const cost = current.costUsd === undefined ? '' : `$${current.costUsd.toFixed(2)}`
+    // The engine prices the session locally and asks a mod to label it an estimate: `~`, as on every estimate in a card.
+    const cost = current.costUsd === undefined ? '' : `~$${current.costUsd.toFixed(2)}`
     // Only a 5h or wk reading says there is a plan: a gateway's lone spend_limit is none. Fast mode bills credits even on one.
     const onPlan = current.rateLimits.some(l => AWAITED.includes(l.kind))
 
@@ -527,7 +530,11 @@ export const register: Register = on => {
               {cache && cost && (
                 <Box position="absolute" top={0} left={0} display="none" hover={{ display: 'flex' }} flexDirection="column">
                   <Text>{`cost: ${cost}`}</Text>
-                  {table([line('based on', 'API prices'), ...(onPlan ? [line('on a plan', 'limits or credits')] : [])])}
+                  {table([
+                    line('based on', 'API prices'),
+                    ...(current.costUnpriced ? [line('includes', 'a model with no price')] : []),
+                    ...(onPlan ? [line('on a plan', 'limits or credits')] : []),
+                  ])}
                 </Box>
               )}
             </Box>

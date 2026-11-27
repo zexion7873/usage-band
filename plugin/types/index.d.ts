@@ -26,6 +26,7 @@ export type UsageBand = {
   readAt?: number
   basePending?: boolean
   costUsd?: number
+  costUnpriced?: boolean
   detail?: UsageBandDetail
 }
 

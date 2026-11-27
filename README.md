@@ -60,7 +60,7 @@ tab cannot run `/plugin` itself, so install from a terminal once.
 | ⏱️ | **`5h`**, **`wk`** | Each rate-limit window: percent used and time until it resets. A grey tick marks the share of the window already elapsed, white where the fill has passed it — a fill past the tick is burning faster than an even pace. Once a window has moved since your last message, `+N%` beside its percent says how far, and the window's card on the desktop repeats it. The windows are the account's, so every session on it counts toward that step, not only this one — except after 10 minutes or more with no response in this session's main thread (up to an hour for `5h`), or after a `/clear`, `/resume` or `/branch`, when the step counts from your message's first response, leaving out what was spent before you wrote. |
 | 💳 | **`spend`** | The spend limit, when the account has one. |
 | ♻️ | **`cache N%`** | Cache reads as a share of all input tokens in the last response. |
-| 💵 | **`$N.NN`** | Session cost at API token prices. On a subscription the plan counts requests against the `5h` / `wk` limits or bills them as usage credits — fast mode does even with plan usage left — and only the credits are charged on top of the plan. On the desktop it is in the card that opens over `cache`, so the meters keep one row however large it grows. |
+| 💵 | **`~$N.NN`** | Session cost at API token prices: an estimate Claude Code prices locally, hence the `~`, and it can run over or under the bill. On a subscription the plan counts requests against the `5h` / `wk` limits or bills them as usage credits — fast mode does even with plan usage left — and only the credits are charged on top of the plan. On the desktop it is in the card that opens over `cache`, so the meters keep one row however large it grows. |
 
 Percent turns amber at 60% and red at 85%.
 
@@ -93,7 +93,7 @@ screen reader also reads:
 The terminal draws the headline figures as one line of text:
 
 ```text
-ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · $1.23
+ctx 42% (84k/200k) · 5h 67% (1h48m) · wk 89% (2d21h) · cache 83% · ~$1.23
 ```
 
 In a terminal too narrow for all of it, the line stays one line and ends in
