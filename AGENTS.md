@@ -85,6 +85,13 @@ reds one is a change in behaviour, not a test to update.
 - **Keep the terminal band to one line.** It is one `Text` with
   `wrap="truncate-end"`; a row of sibling Texts wraps each meter in a column of
   its own once the line outgrows the terminal.
+- **Drop the terminal line's figures by urgency, not from the right.** The line
+  is sized to `e.props.bodyColumns` (an 80-column terminal leaves the band 75),
+  and what does not fit goes in `DROP`'s order, a whole kind at a time; every
+  meter's percent stays. Cut from the right alone, an 80-column line with a step
+  on each window lost the cost, and a 60-column one lost `cache` and `wk`'s
+  countdown, while `(84k/200k)` stayed (seen 2026-11-27). `truncate-end` is what
+  is left for a terminal narrower than the percents.
 - **Count a window's `+N%` from your last message.** A `prompt.submit` whose
   `origin.kind` is `composer`, `bridge` or `sdk` stores each window's reading
   as its `base`, and each `session.measure` shows the rise over it. Not from the

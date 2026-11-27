@@ -103,8 +103,11 @@ On an account with no `5h` or `wk` window (an API key, a gateway), where the
 dollars are what is charged, the cost is followed by what your last message has
 added to it: `~$1.23 +~$0.42`.
 
-In a terminal too narrow for all of it, the line stays one line and ends in
-`…`; the cost goes first, then the cache.
+In a terminal too narrow for all of it, the line stays one line and gives up
+its least urgent figures first: the step on the cost, the token detail beside
+`ctx`, the cost, `cache`, the `+N%` steps, then the reset countdowns. Every
+meter's percent stays; only a terminal narrower than those ends the line in
+`…`.
 
 Reset countdowns and pace ticks keep moving while the session sits idle — the
 band redraws once a minute rather than waiting for the next response. A window

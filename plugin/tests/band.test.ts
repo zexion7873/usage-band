@@ -1270,3 +1270,58 @@ test('terminal band stays one line, cut at the edge rather than wrapped meter by
   ])
   await terminal.unmount()
 })
+
+// Sized to the band's own columns. Cut from the right, the line lost the cost and cache while the token detail stayed.
+test('terminal line too wide for the band gives up its least urgent figures first, and every percent last', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const measure = (step: number) =>
+    $.session.measure({
+      context: { tokens: 84000, window: 200000, percent: 42 },
+      rateLimits: [
+        { kind: 'five_hour', percentUsed: 12 + step, resetsAt: '2026-10-06T03:20:00Z' },
+        { kind: 'seven_day', percentUsed: 89 + step, resetsAt: '2026-10-08T21:00:00Z' },
+      ],
+      cost: { usd: 12.34 },
+      changed: ['context', 'rateLimits'],
+    })
+  await measure(0)
+  await submit($, 'go', 'composer')
+  await measure(2)
+  const at = async (bodyColumns: number) => {
+    const ui = await $.ui.mount({ ...BAND, props: { ...BAND.props, bodyColumns }, surface: 'terminal' })
+    const line = await terminalLine(ui)
+    await ui.unmount()
+    return line
+  }
+
+  // 82 cells in all: it fits a band of exactly 82.
+  expect(await at(82)).toEqual(['ctx 42% (84k/200k) · 5h 14% +2% (3h20m) · wk 91% +2% (2d21h) · cache 83% · ~$12.34'])
+  // An 80-column terminal leaves the band 75: the token detail goes, the cost stays.
+  expect(await at(75)).toEqual(['ctx 42% · 5h 14% +2% (3h20m) · wk 91% +2% (2d21h) · cache 83% · ~$12.34'])
+  expect(await at(70)).toEqual(['ctx 42% · 5h 14% +2% (3h20m) · wk 91% +2% (2d21h) · cache 83%'])
+  expect(await at(55)).toEqual(['ctx 42% · 5h 14% +2% (3h20m) · wk 91% +2% (2d21h)'])
+  expect(await at(45)).toEqual(['ctx 42% · 5h 14% (3h20m) · wk 91% (2d21h)'])
+  expect(await at(40)).toEqual(['ctx 42% · 5h 14% · wk 91%'])
+  // Narrower than the percents alone: nothing more to give up, and `truncate-end` cuts what is left.
+  expect(await at(20)).toEqual(['ctx 42% · 5h 14% · wk 91%'])
+})
+
+test('terminal line gives up the step on the cost before anything else', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  const measure = (usd: number) =>
+    $.session.measure({ context: { tokens: 84000, window: 200000, percent: 42 }, rateLimits: [], cost: { usd }, changed: ['context'] })
+  await measure(1)
+  await submit($, 'go', 'composer')
+  await measure(1.42)
+  const at = async (bodyColumns: number) => {
+    const ui = await $.ui.mount({ ...BAND, props: { ...BAND.props, bodyColumns }, surface: 'terminal' })
+    const line = await terminalLine(ui)
+    await ui.unmount()
+    return line
+  }
+
+  expect(await at(47)).toEqual(['ctx 42% (84k/200k) · cache 83% · ~$1.42 +~$0.42'])
+  expect(await at(46)).toEqual(['ctx 42% (84k/200k) · cache 83% · ~$1.42'])
+})
