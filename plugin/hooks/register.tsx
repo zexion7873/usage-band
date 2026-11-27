@@ -140,8 +140,9 @@ const pace = (limit: SessionRateLimit, now: number) => {
   return Math.round(clampPct(100 * (1 - (Date.parse(limit.resetsAt) - now) / span)))
 }
 
+// From 999,500 the thousands round up to `1000k`.
 const tokens = (n: number) =>
-  n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
+  n >= 999_500 ? `${+(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
 
 const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number): UsageBandDetail | undefined => {
   if (breakdown === undefined) return undefined

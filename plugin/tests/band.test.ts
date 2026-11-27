@@ -622,6 +622,20 @@ test('a window kind named like an Object member reads as its own name, with no f
   await desktop.unmount()
 })
 
+test('a context a rounding short of a million tokens reads 1M, not 1000k', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 999600, window: 1000000, percent: 100 },
+    rateLimits: [],
+    changed: ['context'],
+  })
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx 100% (1M/1M) · cache 83%'])
+  await terminal.unmount()
+})
+
 test('band shows the context a compaction leaves, not the one it removed', async ($, on) => {
   mock.clock(on, { now: NOW })
   engine(on)
