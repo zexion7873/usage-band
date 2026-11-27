@@ -10,6 +10,7 @@ const warned = atom({ plugin: 'usage-band', key: 'warned' } as const, [] as stri
 
 
 const LABELS: Record<string, string> = { five_hour: '5h', seven_day: 'wk', spend_limit: 'spend' }
+const labelOf = (kind: string) => own(LABELS, kind) ?? kind.replaceAll('_', ' ')
 // Desktop row shares, in proportion to each block's widest likely content (`100%`, `199k/200k`, `+12%`, `6d23h`); they sum to 100.
 const ROW_SHARE: Record<string, string> = { ctx: '28%', five_hour: '30%', seven_day: '30%', cache: '12%' }
 const WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day: 7 * 86_400_000 }
@@ -140,8 +141,9 @@ const pace = (limit: SessionRateLimit, now: number) => {
   return Math.round(clampPct(100 * (1 - (Date.parse(limit.resetsAt) - now) / span)))
 }
 
+// From 999,500 the thousands round up to `1000k`.
 const tokens = (n: number) =>
-  n >= 1_000_000 ? `${+(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
+  n >= 999_500 ? `${+(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
 
 const detailOf = (breakdown: SessionContextBreakdown | undefined, window: number): UsageBandDetail | undefined => {
   if (breakdown === undefined) return undefined
@@ -271,7 +273,7 @@ export const register: Register = on => {
       let fresh = false
       await update($, warned, w => ((fresh = !w.includes(key)) ? [...w, key] : w))
       if (!fresh) continue
-      const label = own(LABELS, limit.kind) ?? limit.kind
+      const label = labelOf(limit.kind)
       // The default 4 s is gone before a glance at the window; past 60 s the engine drops the timeout.
       $.ui.toast(`${label} runs out in ~${duration(p.runsOutIn)}, before its ${resetClock(limit.resetsAt!, now)} reset`, { timeoutMs: 15_000 })
     }
@@ -355,7 +357,7 @@ export const register: Register = on => {
         marks: detail?.compactPercent === undefined ? [] : [{ percent: detail.compactPercent, color: COMPACT_TICK }],
       },
       ...current.rateLimits.map(limit => {
-        const label = own(LABELS, limit.kind) ?? limit.kind
+        const label = labelOf(limit.kind)
         // A reading only moves when a response lands, so an idle session can sit past a reset with the old fill.
         if (limit.resetsAt !== undefined && Date.parse(limit.resetsAt) <= now) {
           return {
@@ -434,7 +436,7 @@ export const register: Register = on => {
               <Text key={m.key}>
                 <Text dimColor>{i > 0 ? ' · ' : ''}{m.label} </Text>
                 <Text color={TEXT_COLOR[tone(m.percent)]} dimColor={tone(m.percent) === 'calm'}>{m.figure}</Text>
-                {m.moved && <Text> {m.moved}</Text>}
+                {m.moved && <Text dimColor> {m.moved}</Text>}
                 <Text dimColor>{m.detail && ` (${m.detail})`}</Text>
               </Text>
             ))}

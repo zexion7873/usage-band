@@ -243,6 +243,8 @@ test('a rate-limit window shows how far it moved since your last message, until 
 
   const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await terminalLine(terminal)).toEqual(line('13% +1%'))
+  // Dim on both surfaces: a bright step outshines the reading it belongs to.
+  expect((await terminal.find({ type: 'Text', text: /^ \+1%$/ }))?.props.dimColor).toBe(true)
 
   const desktop = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const [, fiveHour, wk] = await desktop.findAll({ type: 'Svg' })
@@ -250,7 +252,7 @@ test('a rate-limit window shows how far it moved since your last message, until 
   expect(wk?.props.alt).not.toContain('since last message')
   expect(await desktop.find({ type: 'Text', text: /^since last message$/ })).toBeDefined()
   // 5h's step on the row and as its card's value; wk, which did not move, has neither.
-  expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => t.text)).toEqual(['+1%', '+1%'])
+  expect((await desktop.findAll({ type: 'Text', text: /^\+/ })).map(t => [t.text, t.props.dimColor])).toEqual([['+1%', true], ['+1%', true]])
   await desktop.unmount()
 
   // A background agent's report starts a main turn of its own, through a submission that is not yours.
@@ -620,6 +622,34 @@ test('a window kind named like an Object member reads as its own name, with no f
   const [, window] = await desktop.findAll({ type: 'Svg' })
   expect(window?.props.alt).toMatch(/^constructor: 89% used · reset: \d\d:\d\d$/)
   await desktop.unmount()
+})
+
+test('a window kind the band has no label for reads as words, its underscores as spaces', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 84000, window: 200000, percent: 42 },
+    rateLimits: [{ kind: 'some_new_window', percentUsed: 37, resetsAt: '2026-10-06T03:20:00Z' }],
+    changed: ['context', 'rateLimits'],
+  })
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx 42% (84k/200k) · some new window 37% (3h20m) · cache 83%'])
+  await terminal.unmount()
+})
+
+test('a context a rounding short of a million tokens reads 1M, not 1000k', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  engine(on)
+  await $.session.measure({
+    context: { tokens: 999600, window: 1000000, percent: 100 },
+    rateLimits: [],
+    changed: ['context'],
+  })
+
+  const terminal = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await terminalLine(terminal)).toEqual(['ctx 100% (1M/1M) · cache 83%'])
+  await terminal.unmount()
 })
 
 test('band shows the context a compaction leaves, not the one it removed', async ($, on) => {
